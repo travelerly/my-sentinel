@@ -16,8 +16,6 @@
 
 package com.alibaba.cloud.sentinel.custom;
 
-import javax.annotation.PostConstruct;
-
 import com.alibaba.cloud.sentinel.SentinelProperties;
 import com.alibaba.cloud.sentinel.datasource.converter.JsonConverter;
 import com.alibaba.cloud.sentinel.datasource.converter.XmlConverter;
@@ -34,7 +32,6 @@ import com.alibaba.csp.sentinel.transport.config.TransportConfig;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -47,6 +44,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
+
+import javax.annotation.PostConstruct;
 
 import static com.alibaba.cloud.sentinel.SentinelConstants.BLOCK_PAGE_URL_CONF_KEY;
 import static com.alibaba.csp.sentinel.config.SentinelConfig.setConfig;
@@ -136,6 +135,7 @@ public class SentinelAutoConfiguration {
 
 	}
 
+	// sentinel 核心源码解析入口
 	@Bean
 	@ConditionalOnMissingBean
 	public SentinelResourceAspect sentinelResourceAspect() {

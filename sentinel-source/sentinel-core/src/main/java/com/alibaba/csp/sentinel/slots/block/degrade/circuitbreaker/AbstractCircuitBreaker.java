@@ -74,11 +74,14 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         /**
          * 熔断器状态为打开状态，此时再查看：
          * 若下次时间窗时间点已经到达，且熔断器状态由 open 变为了 half-open，则请求通过
+         * 通过 CAS 将状态由 OPEN 修改为 HALF_OPEN。修改成功，则返回 true，否则返回 false。
          */
         if (currentState.get() == State.OPEN) {
             // For half-open state we allow a request for probing.
             return retryTimeoutArrived() && fromOpenToHalfOpen(context);
         }
+
+        // open 状态，并且时间窗为未到，则返回 false
         return false;
     }
 
@@ -88,6 +91,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     abstract void resetStat();
 
     protected boolean retryTimeoutArrived() {
+        // 当前时间 大于 下一次 HalfOpen 的重试时间
         return TimeUtil.currentTimeMillis() >= nextRetryTimestamp;
     }
 
@@ -107,17 +111,23 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     protected boolean fromOpenToHalfOpen(Context context) {
+        // 基于 CAS 修改状态，从 open 到 half_open
         if (currentState.compareAndSet(State.OPEN, State.HALF_OPEN)) {
+            // 状态变更的事件通知
             notifyObservers(State.OPEN, State.HALF_OPEN, null);
+            // 获取到当前的资源
             Entry entry = context.getCurEntry();
+            // 给资源设置监听器，在资源 Entry 销毁时(资源业务执行完毕时)触发
             entry.whenTerminate(new BiConsumer<Context, Entry>() {
                 @Override
                 public void accept(Context context, Entry entry) {
                     // Note: This works as a temporary workaround for https://github.com/alibaba/Sentinel/issues/1638
                     // Without the hook, the circuit breaker won't recover from half-open state in some circumstances
                     // when the request is actually blocked by upcoming rules (not only degrade rules).
+                    // 判断资源业务是否正常
                     if (entry.getBlockError() != null) {
                         // Fallback to OPEN due to detecting request is blocked
+                        // 如果资源业务异常，通过 CAS 将状态由 OPEN 修改为 HALF_OPEN。修改成功，则返回 true，否则返回 false。
                         currentState.compareAndSet(State.HALF_OPEN, State.OPEN);
                         notifyObservers(State.HALF_OPEN, State.OPEN, 1.0d);
                     }

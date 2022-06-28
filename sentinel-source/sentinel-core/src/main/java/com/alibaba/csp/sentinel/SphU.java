@@ -309,7 +309,7 @@ public class SphU {
      */
     public static Entry entry(String name, int resourceType, EntryType trafficType, Object[] args)
         throws BlockException {
-        // 注意第四个参数为 1。
+        // CtSph#entryWithType()，注意第四个参数为 1。
         return Env.sph.entryWithType(name, resourceType, trafficType, 1, args);
     }
 

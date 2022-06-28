@@ -15,8 +15,6 @@
  */
 package com.alibaba.csp.sentinel;
 
-import java.util.LinkedList;
-
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.context.NullContext;
@@ -25,6 +23,8 @@ import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.util.function.BiConsumer;
+
+import java.util.LinkedList;
 
 /**
  * Linked entry within current context.
@@ -46,6 +46,7 @@ class CtEntry extends Entry {
         this.chain = chain;
         this.context = context;
 
+        // 调用链的变换，即将当前 Entry 接到传入 Context 的调用链路上
         setUpEntryFor(context);
     }
 

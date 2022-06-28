@@ -15,15 +15,15 @@
  */
 package com.alibaba.csp.sentinel.slots.block.authority;
 
-import java.util.Map;
-import java.util.Set;
-
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.spi.SpiOrder;
+
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A {@link ProcessorSlot} that dedicates to {@link AuthorityRule} checking.
@@ -34,10 +34,22 @@ import com.alibaba.csp.sentinel.spi.SpiOrder;
 @SpiOrder(-6000)
 public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
+    /**
+     * AuthoritySlot 负责授权规则（来源控制）
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count, boolean prioritized, Object... args)
         throws Throwable {
+        // 校验黑白名单
         checkBlackWhiteAuthority(resourceWrapper, context);
+        // 进入下一个 slot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
@@ -47,6 +59,7 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     }
 
     void checkBlackWhiteAuthority(ResourceWrapper resource, Context context) throws AuthorityException {
+        // 获取授权规则
         Map<String, Set<AuthorityRule>> authorityRules = AuthorityRuleManager.getAuthorityRules();
 
         if (authorityRules == null) {
@@ -58,8 +71,11 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             return;
         }
 
+        // 遍历规则并判断
         for (AuthorityRule rule : rules) {
+            // 规则判断
             if (!AuthorityRuleChecker.passCheck(rule, context)) {
+                // 规则不通过，则直接抛出异常
                 throw new AuthorityException(context.getOrigin(), rule);
             }
         }

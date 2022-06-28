@@ -15,24 +15,21 @@
  */
 package com.alibaba.csp.sentinel.slots.clusterbuilder;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
-import com.alibaba.csp.sentinel.node.ClusterNode;
-import com.alibaba.csp.sentinel.node.DefaultNode;
-import com.alibaba.csp.sentinel.node.IntervalProperty;
-import com.alibaba.csp.sentinel.node.Node;
-import com.alibaba.csp.sentinel.node.SampleCountProperty;
+import com.alibaba.csp.sentinel.node.*;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
 import com.alibaba.csp.sentinel.spi.SpiOrder;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
+ * 统计触点构建
  * <p>
  * This slot maintains resource running statistics (response time, qps, thread
  * count, exception), and a list of callers as well which is marked by
@@ -72,34 +69,51 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
 
     private volatile ClusterNode clusterNode = null;
 
+    /**
+     * ClusterBuilderSlot 负责构建某个资源的 ClusterNode
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args)
         throws Throwable {
+        // 判空，主要 ClusterNode 是共享的成员变量，也就是说一个资源只有一个 ClusterNode，与链路无关
         if (clusterNode == null) {
             synchronized (lock) {
                 if (clusterNode == null) {
-                    // Create the cluster node.
+                    // 若为空，则创建一个新的 ClusterNode。Create the cluster node.
                     clusterNode = new ClusterNode(resourceWrapper.getName(), resourceWrapper.getResourceType());
                     HashMap<ResourceWrapper, ClusterNode> newMap = new HashMap<>(Math.max(clusterNodeMap.size(), 16));
                     newMap.putAll(clusterNodeMap);
+                    // 将新的 ClusterNode 放入缓存中，key 为 nodeId，也就是 resourceName
                     newMap.put(node.getId(), clusterNode);
 
                     clusterNodeMap = newMap;
                 }
             }
         }
+
+        // 将资源的 DefaultNode 与 ClusterNode 关联起来
         node.setClusterNode(clusterNode);
 
         /*
+         * 记录请求来源 origin，将 origin 放入 Entry 中
          * if context origin is set, we should get or create a new {@link Node} of
          * the specific origin.
          */
         if (!"".equals(context.getOrigin())) {
             Node originNode = node.getClusterNode().getOrCreateOriginNode(context.getOrigin());
+            // 将请求来源 origin 放入到 Entry 中
             context.getCurEntry().setOriginNode(originNode);
         }
 
+        // 由 AbstractLinkedProcessorSlot 触发下一个 Slot，StatisticSlot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 

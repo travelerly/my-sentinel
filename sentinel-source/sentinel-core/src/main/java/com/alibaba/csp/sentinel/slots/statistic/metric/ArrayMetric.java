@@ -36,9 +36,18 @@ import java.util.List;
  */
 public class ArrayMetric implements Metric {
 
-    // 数据就保存在这个 data 中
+    /**
+     * 数据就保存在这个 data 中
+     */
     private final LeapArray<MetricBucket> data;
 
+    /**
+     * sampleCount：时间窗口的分割数量，默认为 2，就是把 1s 分为两个小的时间窗
+     * intervalInMs：滑动窗口的时间间隔，默认为 1s
+     *
+     * @param sampleCount
+     * @param intervalInMs
+     */
     public ArrayMetric(int sampleCount, int intervalInMs) {
         this.data = new OccupiableBucketLeapArray(sampleCount, intervalInMs);
     }
@@ -106,9 +115,10 @@ public class ArrayMetric implements Metric {
         return block;
     }
 
+    // rollingCounterInSecond 本质是 ArrayMetric
     @Override
     public long pass() {
-        // 更新 array 中当前时间点所在的样本窗口实例中的数据
+        // 获取 ArrayMetric 中当前时间点所在的样本窗口实例中的数据
         data.currentWindow();
         long pass = 0;
         // 将当前时间窗口中的所有样本窗口统计的 value 记录到 result 中
@@ -118,6 +128,7 @@ public class ArrayMetric implements Metric {
         for (MetricBucket window : list) {
             pass += window.pass();
         }
+        // 返回结果
         return pass;
     }
 
@@ -248,7 +259,7 @@ public class ArrayMetric implements Metric {
     public void addPass(int count) {
         // 获取当前时间点所在的样本窗口
         WindowWrap<MetricBucket> wrap = data.currentWindow();
-        // 将当前请求的计数量添加到当前样本窗口的统计数据中
+        // 将当前请求的计数量添加到当前样本窗口的统计数据中，即计数器+1
         wrap.value().addPass(count);
     }
 

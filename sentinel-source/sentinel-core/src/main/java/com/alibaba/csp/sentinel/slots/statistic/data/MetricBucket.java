@@ -28,7 +28,10 @@ import com.alibaba.csp.sentinel.slots.statistic.base.LongAdder;
  */
 public class MetricBucket {
 
-    // 统计的数据存放在这里（这里要统计的数据是多维度的，这些维度类型在 MetricEvent 枚举中）
+    /**
+     * 统计的数据存放在这里
+     * 这里要统计的数据是多维度的，这些维度类型在 MetricEvent 枚举中
+     */
     private final LongAdder[] counters;
 
     private volatile long minRt;
@@ -61,7 +64,7 @@ public class MetricBucket {
      * @return new metric bucket in initial state
      */
     public MetricBucket reset() {
-        // 将每个维度的数据清零
+        // 将每个维度的统计数据清零
         for (MetricEvent event : MetricEvent.values()) {
             counters[event.ordinal()].reset();
         }
@@ -106,7 +109,7 @@ public class MetricBucket {
         return get(MetricEvent.SUCCESS);
     }
 
-    public void addPass(int n) {
+    public void     addPass(int n) {
         // 向 PASS 维度中增加统计数据
         add(MetricEvent.PASS, n);
     }

@@ -30,7 +30,7 @@ public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T>
     public void fireEntry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
         throws Throwable {
         if (next != null) {
-            //  切换到下一个节点
+            // 切换到下一个节点
             next.transformEntry(context, resourceWrapper, obj, count, prioritized, args);
         }
     }
@@ -39,7 +39,18 @@ public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T>
     void transformEntry(Context context, ResourceWrapper resourceWrapper, Object o, int count, boolean prioritized, Object... args)
         throws Throwable {
         T t = (T)o;
-        // 进入下一个节点
+        /**
+         * 进入下一个节点，节点顺序依次是：
+         * NodeSelectorSlot：    调用链路构建
+         * ClusterBuilderSlot：  统计簇点构建
+         * LogSolt：             ******
+         * StatisticSlot：       监控统计
+         * AuthoritySlot：       来源访问控制
+         * SystemSlot：          系统保护
+         * ParamFlowSlot：       热点参数限流
+         * FlowSlot：            流量控制
+         * DegradeSlot：         熔断降级
+         */
         entry(context, resourceWrapper, t, count, prioritized, args);
     }
 

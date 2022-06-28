@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
+ * 链路节点，用于统计调用链路上某个资源的数据，维持树状结构。
  * <p>
  * A {@link Node} used to hold statistics for specific resource name in the specific context.
  * Each distinct resource in each distinct {@link Context} will corresponding to a {@link DefaultNode}.
@@ -138,7 +139,7 @@ public class DefaultNode extends StatisticNode {
 
     @Override
     public void addPassRequest(int count) {
-        // 增加当前入口的 DefaultNode 中的统计数据
+        // 增加当前链路的计数器中的统计数据，DefaultNode 的计数器，代表当前链路的计数器
         super.addPassRequest(count);
         // 增加当前资源的 ClusterNode 中的全局统计数据
         this.clusterNode.addPassRequest(count);

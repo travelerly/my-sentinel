@@ -84,6 +84,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *                                                    request
  * </pre>
  *
+ * 最为基础的统计节点，包含秒级和分钟级两个滑动窗口结构。
+ *
  * @author qinan.qn
  * @author jialiang.linjl
  */
@@ -206,6 +208,7 @@ public class StatisticNode implements Node {
         /**
          * rollingCounterInSecond.pass()：当前时间窗中统计的通过的请求数量
          * rollingCounterInSecond.getWindowIntervalInSec()：时间窗长度
+         * 相除结果就是 QPS
          */
         return rollingCounterInSecond.pass() / rollingCounterInSecond.getWindowIntervalInSec();
     }
@@ -251,10 +254,15 @@ public class StatisticNode implements Node {
         return (int)curThreadNum.sum();
     }
 
+    /**
+     * 这里只负责统计每个窗口的请求量，不负责拦截，限流拦截要用到 FlowSlot 中的逻辑。
+     * @param count count to add pass
+     */
     @Override
     public void addPassRequest(int count) {
-        // 为滑动计数器增加本次访问的数据
+        // 为滑动计数器增加本次访问的数据(使用数组保存数据的计量器，以秒为单位)
         rollingCounterInSecond.addPass(count);
+        // 为滑动计数器增加本次访问的数据(使用数组保存数据的计量器，以分钟为单位)
         rollingCounterInMinute.addPass(count);
     }
 

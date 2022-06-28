@@ -22,19 +22,32 @@ package com.alibaba.csp.sentinel.slots.statistic;
 public enum MetricEvent {
 
     /**
-     * Normal pass.
+     * 通过的请求数。Normal pass.
      */
     PASS,
+
     /**
-     * Normal block.
+     * 被限流的请求数。Normal block.
      */
     BLOCK,
+
+    /**
+     * 发生异常的请求数
+     */
     EXCEPTION,
+
+    /**
+     * 成功的请求数
+     */
     SUCCESS,
+
+    /**
+     * 响应时间
+     */
     RT,
 
     /**
-     * Passed in future quota (pre-occupied, since 1.5.0).
+     * 特殊的通过的请求数。Passed in future quota (pre-occupied, since 1.5.0).
      */
     OCCUPIED_PASS
 }

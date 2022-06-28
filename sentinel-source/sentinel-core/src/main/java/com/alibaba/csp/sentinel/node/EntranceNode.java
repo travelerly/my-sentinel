@@ -21,6 +21,7 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
 
 /**
+ * 入口节点，特殊的链路节点，对应某个 Context 入口的所有调用数据，Constants.ROOT 节点也是入口节点。
  * <p>
  * A {@link Node} represents the entrance of the invocation tree.
  * </p>

@@ -33,6 +33,7 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
 import java.util.Collection;
 
 /**
+ * 监控统计
  * <p>
  * A processor slot that dedicates to real time statistics.
  * When entering this slot, we need to separately count the following
@@ -51,35 +52,51 @@ import java.util.Collection;
 @SpiOrder(-7000)
 public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
+    /**
+     * StatisticSlot 负责统计实时调用数据，包括运行时信息（访问次数、线程数）、来源信息等
+     * StatisticSlot 是实现限流的关键，其中基于滑动时间窗算法维护了计数器，统计进入某个资源的请求次数
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
         try {
-            // Do some checking.
-            // 调用 SlotChain 中后续所有 slot，完成所有规则检测
-            // 其在执行过程中可能会抛出异常，例如：规则检测未通过，抛出 BlockException
+            /**
+             * AbstractLinkedProcessorSlot#fireEntry()
+             * 放行至下一个 slot，做限流、降级等判断
+             * 该方法会将槽链中后续所有 Slot 槽节点执行完毕，然后才会返回到该方法语句后，继续执行，将该请求添加到统计数据中。
+             * 在后续槽节点执行过程中，可能会抛出各种异常，而这些异常会在 StatisticSlot 中被捕获，然后将该异常添加到统计数据中。
+             * Slot 槽中两个比较重要的是 FlowSlot(流量控制) 和 DegradeSlot(熔断降级)
+             */
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
 
             // Request passed, add thread count and pass count.
             // 运行至此，说明前面所有规则检测全部通过，此时就可以将该请求统计到相应数据中了
-            // 增加线程数量
+
+            // 请求通过了，线程计数器+1，用作线程隔离
             node.increaseThreadNum();
-            // 增加通过的请求数量
+            // 请求计数器+1，用作限流，增加通过的请求数量(QPS)(滑动时间窗算法)
             node.addPassRequest(count);
 
             if (context.getCurEntry().getOriginNode() != null) {
-                // Add count for origin node.
+                // 如果有 origin，来源计数器也要+1。Add count for origin node.
                 context.getCurEntry().getOriginNode().increaseThreadNum();
                 context.getCurEntry().getOriginNode().addPassRequest(count);
             }
 
             if (resourceWrapper.getEntryType() == EntryType.IN) {
-                // Add count for global inbound entry node for global statistics.
+                // 如果是入口资源，全局计数器+1。Add count for global inbound entry node for global statistics.
                 Constants.ENTRY_NODE.increaseThreadNum();
                 Constants.ENTRY_NODE.addPassRequest(count);
             }
 
-            // Handle pass event with registered entry callback handlers.
+            // 请求通过后的回调。Handle pass event with registered entry callback handlers.
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }

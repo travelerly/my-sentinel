@@ -125,8 +125,10 @@ public class ContextUtil {
         if (context == null) {
             // 缓存 map 的 key 为 context 名称；value 为 EntranceNode
             Map<String, DefaultNode> localCacheNameMap = contextNameNodeMap;
-            // 获取 EntranceNode
+
+            // 从缓存中获取 EntranceNode
             DefaultNode node = localCacheNameMap.get(name);
+
             if (node == null) {
                 if (localCacheNameMap.size() > Constants.MAX_CONTEXT_NAME_SIZE) {
                     setNullContext();
@@ -135,6 +137,7 @@ public class ContextUtil {
                 } else {
                     LOCK.lock();
                     try {
+                        // 双端检索，为了方式并发创建，再次从缓存中获取 EntranceNode
                         node = contextNameNodeMap.get(name);
                         if (node == null) {
                             if (contextNameNodeMap.size() > Constants.MAX_CONTEXT_NAME_SIZE) {
@@ -146,7 +149,10 @@ public class ContextUtil {
                                 // 将 EntranceNode 添加到 ROOT 中。Add entrance node.
                                 Constants.ROOT.addChild(node);
 
-                                // 缓存 EntranceNode。（为了防止"迭代稳定性-iterate stable"问题，采用此种方式进行缓存）
+                                /**
+                                 * 缓存 EntranceNode
+                                 * 为了防止"迭代稳定性问题"，采用此种方式进行缓存，应用的场景是对共享集合的写操作
+                                 */
                                 Map<String, DefaultNode> newMap = new HashMap<>(contextNameNodeMap.size() + 1);
                                 newMap.putAll(contextNameNodeMap);
                                 newMap.put(name, node);

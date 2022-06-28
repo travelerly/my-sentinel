@@ -157,18 +157,47 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         this.checker = checker;
     }
 
+    /**
+     * FlowSlot  是负责限流规则的判断，包括：
+     * 三种流控模式：
+     * 1.直接模式：统计当前资源的请求，触发阈值时对当前资源直接限流，也是默认的模式
+     * 2.关联模式：统计与当前资源相关的另一个资源，触发阈值时，对当前资源限流
+     * 3.链路模式：统计从指定链路访问到本资源的请求，触发阈值时，对指定链路限流
+     *
+     * 三种流控效果：
+     * 1.快速失败：达到阈值后，新的请求会被立即拒绝并抛出 FlowException 异常。是默认的处理方式
+     * 2.warm up：预热模式，对超出阈值的请求同样是拒绝并抛出异常。但这种模式阈值会动态变化，从一个较小值逐渐增加到最大阈值
+     * 3.排队等待：让所有的请求按照先后次序排队执行，两个请求的间隔不能小于指定时长
+     *
+     * 三种流控模式，从底层数据统计角度来看，分为两类
+     * 1.对进入资源的所有请求(ClusterNode)做限流统计：直接模式、关联模式
+     * 2.对进入资源的部分链路(DefaultNode)做限流统计：链路模式
+     *
+     * 三种流控效果，从限流算法来看，分为两类
+     * 1.滑动时间窗口算法：快速失败、warm up
+     * 2.漏桶算法：排队等待结果
+     *
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
         // 检测并应用流控规则
         checkFlow(resourceWrapper, context, node, count, prioritized);
 
-        // 触发下一个 slot
+        // 由 AbstractLinkedProcessorSlot 触发下一个 slot，DegradeSlot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
     void checkFlow(ResourceWrapper resource, Context context, DefaultNode node, int count, boolean prioritized)
         throws BlockException {
+        // checker 是 FlowRuleChecker 类的一个对象
         checker.checkFlow(ruleProvider, resource, context, node, count, prioritized);
     }
 

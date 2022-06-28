@@ -110,7 +110,8 @@ public class CtSph implements Sph {
     }
 
     /**
-     *
+     * 此段代码会获取 ProcessSlotChain 对象，然后基于 chain.entry() 开始执行 SlotChain 中的每一个 Slot
+     * 而这里创建的是其实现类 DefaultProcessSlotChain
      * @param resourceWrapper 资源实例
      * @param count 默认值为 1
      * @param prioritized 默认值为 false
@@ -121,9 +122,13 @@ public class CtSph implements Sph {
     private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
         throws BlockException {
 
-        // 从 ThreadLocal 中获取 context
-        // 即一个请求会占用一个线程，一个线程会绑定一个 context
+        /**
+         * 从 ThreadLocal 中获取 Context
+         * Context 已经在 AbstractSentinelInterceptor#preHandle() 方法中完成初始化了
+         * 一个请求会占用一个线程，一个线程会绑定一个 context
+         */
         Context context = ContextUtil.getContext();
+
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
             // so here init the entry only. No rule checking will be done.
@@ -137,17 +142,22 @@ public class CtSph implements Sph {
 
         if (context == null) {
             // Using default context.
-            // 若当前线程中没有绑定 context，则创建一个 context 并将其放入到 ThreadLocal 中。
+            // 若当前线程中没有绑定 context，则创建一个 context 并将其放入到 ThreadLocal 中，默认的 name 为 sentinel_default_context。
             context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
         }
 
         // Global switch is close, no rule checking will do.
         if (!Constants.ON) {
-            // 若全局开关是关闭的，则直接返回一个无需规则检测的资源操作对象
+            // 若全局开关是关闭的，则直接返回一个无需做规则检测的资源操作对象
             return new CtEntry(resourceWrapper, null, context);
         }
 
-        // 查找 SlotChain
+        /**
+         * 获取 Slot 执行链，即获取 SlotChain
+         * 通过 SPI 创建多个 Slot，然后将所有 Slot 添加进 SlotChain 中
+         * 获取 ProcessSlotChain 对象，而这里创建的是其实现类 DefaultProcessSlotChain，
+         * 将 SlotChain 放入缓存 map 中，key 为 ResourceWrapper，value 是 ProcessSlotChain，所以同一个资源，只会创建一个执行链
+         */
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -159,10 +169,13 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
 
-        // 创建一个资源操作对象
+        // 创建一个资源操作对象 Entry，并将 resource、chain、context 记录在 Entry 中
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
-            // 对资源进行操作
+            /**
+             * 执行 Slot 执行链，即执行 SlotChain 中的每一个 Slot。
+             * DefaultProcessorSlotChain#entry()
+             */
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
         } catch (BlockException e1) {
             e.exit(count, args);
@@ -210,24 +223,44 @@ public class CtSph implements Sph {
      * @return {@link ProcessorSlotChain} of the resource
      */
     ProcessorSlot<Object> lookProcessChain(ResourceWrapper resourceWrapper) {
-        // 从缓存 map 中获取当前资源的 SlotChain
-        // 缓存 map 的 key 为资源，value 为其相关的 SlotChain
+        /**
+         * 从缓存 map 中获取当前资源的 SlotChain
+         * resourceWrapper 有当前资源的信息创建
+         * 缓存 map 的 key 为资源，value 为其相关的 SlotChain
+         */
         ProcessorSlotChain chain = chainMap.get(resourceWrapper);
-        // DCL
-        // 若缓存中没有相关的 SlotChain，则创建一个并放入到缓存中
+
+        /**
+         * DCL
+         * 若缓存中没有相关的 SlotChain，则创建一个并放入到缓存中
+         */
         if (chain == null) {
             synchronized (LOCK) {
                 chain = chainMap.get(resourceWrapper);
                 if (chain == null) {
-                    // Entry size limit.
-                    // 若缓存 map 的大小 >= chain 数量的最大阈值，则直接返回 null，不再创建新的 chain
+                    /**
+                     * 若缓存 map 的大小 >= chain 数量的最大阈值，则直接返回 null，不再创建新的 chain
+                     * Entry size limit.
+                     */
                     if (chainMap.size() >= Constants.MAX_SLOT_CHAIN_SIZE) {
                         return null;
                     }
 
-                    // 创建新的 SlotChain
+                    /**
+                     * 创建新的 SlotChain
+                     * 使用 SPI 机制构建 Slot，会加载很多的 Slot，并且是按照顺序加载：
+                     * NodeSelectorSlot：调用链路构建
+                     * ClusterBuilderSlot：统计簇点构建
+                     * LogSlot：
+                     * StatisticSlot：监控统计
+                     * AuthoritySlot：来源访问控制
+                     * SystemSlot：系统保护
+                     * FlowSlot：流量控制
+                     * DegradeSlot：熔断降级
+                     * 最后将所有 slot 逐个添加到 SlotChain 中
+                     */
                     chain = SlotChainProvider.newSlotChain();
-                    // 缓存新建的 SlotChain。（避免迭代稳定性）
+                    // 缓存新建的 SlotChain。（避免出现迭代稳定性问题）
                     Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
                         chainMap.size() + 1);
                     newMap.putAll(chainMap);
@@ -362,19 +395,21 @@ public class CtSph implements Sph {
     @Override
     public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, Object[] args)
         throws BlockException {
-        // count：表示当前请求可以增加多少个计数（默认值为 1）
-        // 注意第五个参数为 false。
+        /**
+         * count：表示当前请求可以增加多少个计数（默认值为 1），例如 qps 的增加数
+         * 注意第五个参数为 false。
+         */
         return entryWithType(name, resourceType, entryType, count, false, args);
     }
 
     @Override
     public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, boolean prioritized,
                                Object[] args) throws BlockException {
-        // 将信息封装为一个资源对象
+        // 将资源名称等基本信息，封装为一个资源对象 StringResourceWrapper
         StringResourceWrapper resource = new StringResourceWrapper(name, entryType, resourceType);
 
         /**
-         * 返回一个资源操作对象 Entry
+         * 继续执行，返回一个资源操作对象 Entry，具有优先级的 Entry 对象
          * prioritized = true，则表示当前访问必须等待"根据其优先级计算出的时间"后才能通过
          * prioritized = false（默认值），则表示当前请求无需等待
          */

@@ -34,15 +34,42 @@ import java.util.List;
 @SpiOrder(-3000)
 public class ParamFlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
+    /**
+     * ParamFlowSlot 负责热点参数限流，是针对进入资源的请求，针对不同的请求参数分别统计 QPS 的限流方式
+     * 这里的单机阈值，就是最大令牌数量：macCount
+     * 这里的统计窗口时长，就是统计时长：duration
+     * 其含义是每个 duration 时间长度内，最多生产 macCount 个令牌
+     *
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
+        // 如果没有设置热点规则，直接放行
         if (!ParamFlowRuleManager.hasRules(resourceWrapper.getName())) {
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
             return;
         }
 
+        /**
+         * 热点规则判断
+         * 热点规则判断采用了令牌桶算法来实现参数限流，为每一个不同参数值设置令牌桶，Sentinel 的令牌桶有两部分组成：
+         * CacheMap<Object, AtomicLong> tokenCounters = metric == null ? null : metric.getRuleTokenCounter(rule);
+         * CacheMap<Object, AtomicLong> timeCounters = metric == null ? null : metric.getRuleTimeCounter(rule);
+         * 这两个 map 的 key 都是请求的参数值，value 却不相同：
+         * tokenCounters：用来记录剩余令牌数量
+         * timeCounters：用来记录上一个请求的时间
+         *
+         */
         checkFlow(resourceWrapper, count, args);
+
+        // 由 AbstractLinkedProcessorSlot 触发下一个 Slot，FlowSlot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 

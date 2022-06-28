@@ -28,38 +28,60 @@ import org.aspectj.lang.annotation.Pointcut;
 import java.lang.reflect.Method;
 
 /**
+ * AspctJ 切面
+ * Sentinel 基于 AOP 思想，对 @SentinelResource 标记的方法做环绕增强，完成资源的创建。
  * Aspect for methods with {@link SentinelResource} annotation.
  *
  * @author Eric Zhao
  */
-// AspctJ 切面
 @Aspect
 public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
 
-    // 指定切入点注解为 @SentinelResource
+    /**
+     * 指定切入点为标注了注解 @SentinelResource 的类
+     */
     @Pointcut("@annotation(com.alibaba.csp.sentinel.annotation.SentinelResource)")
     public void sentinelResourceAnnotationPointcut() {
     }
 
-    // 指定环绕通知（around advice）
+    /**
+     * 环绕增强（around advice）
+     * @param pjp
+     * @return
+     * @throws Throwable
+     */
     @Around("sentinelResourceAnnotationPointcut()")
     public Object invokeResourceWithSentinel(ProceedingJoinPoint pjp) throws Throwable {
+        // 获取目标方法
         Method originMethod = resolveMethod(pjp);
 
+        // 获取 @SentinelResource 注解
         SentinelResource annotation = originMethod.getAnnotation(SentinelResource.class);
         if (annotation == null) {
             // Should not go through here.
             throw new IllegalStateException("Wrong state for SentinelResource annotation");
         }
+
+        // 获取注解的 @SentinelResource 的 value 的值，即获取的是资源名称
         String resourceName = getResourceName(annotation.value(), originMethod);
         EntryType entryType = annotation.entryType();
         int resourceType = annotation.resourceType();
         Entry entry = null;
+
         try {
-            // 要织入的、增强的功能
+            /**
+             * 创建资源 Entry，即获取资源的操作对象，在目标方法执行之前执行功能增强，即应用流控规则
+             * 要织入的、增强的功能
+             * resourceName：资源名称，即注解 @SentinelResource 的 value 属性的值
+             */
             entry = SphU.entry(resourceName, resourceType, entryType, pjp.getArgs());
-            // 调用目标方法
+
+            /**
+             * 至此流控规则应用完毕，调用目标方法
+             */
             Object result = pjp.proceed();
+
+            // 返回结果
             return result;
         } catch (BlockException ex) {
             return handleBlockException(pjp, annotation, ex);
@@ -78,6 +100,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             throw ex;
         } finally {
             if (entry != null) {
+                // 清空 entry 中的 context 防止重复调用。(目标方法执行完毕之后，或应用流控规则时未通过后执行）
                 entry.exit(1, pjp.getArgs());
             }
         }

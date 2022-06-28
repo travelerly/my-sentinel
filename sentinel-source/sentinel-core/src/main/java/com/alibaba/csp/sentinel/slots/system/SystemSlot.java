@@ -31,10 +31,22 @@ import com.alibaba.csp.sentinel.spi.SpiOrder;
 @SpiOrder(-5000)
 public class SystemSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
+    /**
+     * SystemSlot 是对系统保护的规则校验
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param node           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
+        // 系统规则校验
         SystemRuleManager.checkSystem(resourceWrapper);
+        // 由 AbstractLinkedProcessorSlot 触发下一个 Slot，ParamFlowSlot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 

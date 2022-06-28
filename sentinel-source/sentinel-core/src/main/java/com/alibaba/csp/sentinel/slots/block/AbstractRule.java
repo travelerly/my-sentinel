@@ -30,6 +30,7 @@ public abstract class AbstractRule implements Rule {
 
     /**
      * <p>
+     * 请求来源
      * Application name that will be limited by origin.
      * The default limitApp is {@code default}, which means allowing all origin apps.
      * </p>
@@ -37,7 +38,6 @@ public abstract class AbstractRule implements Rule {
      * For authority rules, multiple origin name can be separated with comma (',').
      * </p>
      */
-    // 请求来源
     private String limitApp;
 
     @Override

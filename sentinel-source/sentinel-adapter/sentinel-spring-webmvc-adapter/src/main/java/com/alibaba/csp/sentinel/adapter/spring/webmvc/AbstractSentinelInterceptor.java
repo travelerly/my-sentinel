@@ -15,23 +15,18 @@
  */
 package com.alibaba.csp.sentinel.adapter.spring.webmvc;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import com.alibaba.csp.sentinel.Entry;
-import com.alibaba.csp.sentinel.EntryType;
-import com.alibaba.csp.sentinel.ResourceTypeConstants;
-import com.alibaba.csp.sentinel.SphU;
-import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.*;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.config.BaseWebMvcConfig;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.StringUtil;
-
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Since request may be reprocessed in flow if any forwarding or including or other action
@@ -88,6 +83,7 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
         throws Exception {
         try {
+            // 获取资源名称，一般是 Controller 方法的 @RequestMapping 路径，例如：/order/{orderId}
             String resourceName = getResourceName(request);
 
             if (StringUtil.isEmpty(resourceName)) {
@@ -98,10 +94,13 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
                 return true;
             }
             
-            // Parse the request origin using registered origin parser.
+            // 从 request 中获取请求来源，将来做授权规则判断时会用到。Parse the request origin using registered origin parser.
             String origin = parseOrigin(request);
+            // 获取 contextName，默认是：sentinel_spring_web_context
             String contextName = getContextName(request);
+            // 创建 Context
             ContextUtil.enter(contextName, origin);
+            // 创建资源，名称就是当前请求的 Controller 方法的映射路径
             Entry entry = SphU.entry(resourceName, ResourceTypeConstants.COMMON_WEB, EntryType.IN);
             request.setAttribute(baseWebMvcConfig.getRequestAttributeName(), entry);
             return true;

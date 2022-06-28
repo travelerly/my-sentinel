@@ -131,6 +131,21 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
      */
     private volatile Map<String, DefaultNode> map = new HashMap<String, DefaultNode>(10);
 
+    /**
+     * NodeSelectorSlot 完成了以下几件事：
+     * 1.为当前资源创建 DefaultNode
+     * 2.将 DefaultNode 放入缓存中，key 是 contextName，这样不同链路入口的请求，将会创建多个 DefaultNode，相同链路则只有一个 DefaultNode
+     * 3.将当前资源的 DefaultNode 设置为上一个资源的 childNode
+     * 4.将当前资源的 DefaultNode 设置为 Context 中的 curNode(当前节点)
+     *
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param obj           generics parameter, usually is a {@link com.alibaba.csp.sentinel.node.Node}
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
         throws Throwable {
@@ -152,7 +167,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
-        // 从缓存中获取 DefaultNode
+        // 尝试从缓存中获取当前资源的 DefaultNode
         DefaultNode node = map.get(context.getName());
         // DCL
         if (node == null) {
@@ -160,22 +175,23 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                 node = map.get(context.getName());
                 if (node == null) {
 
-                    // 创建一个 DefaultNode，并放入到缓存 map 中
+                    // 如果为空，则为当前资源创建一个新的 DefaultNode，并放入到缓存 map 中
                     node = new DefaultNode(resourceWrapper, null);
                     HashMap<String, DefaultNode> cacheMap = new HashMap<String, DefaultNode>(map.size());
                     cacheMap.putAll(map);
+                    // 放入缓存 map 中，key 是 contextName，这样不同链路进入相同资源，就会创建多个 DefaultNode
                     cacheMap.put(context.getName(), node);
                     map = cacheMap;
-                    // Build invocation tree
-                    // 将新建 node 添加到调用树中
+
+                    // 将当前节点加入上一节点的 child 中，这样就构成了调用链路树，EntranceNode → DefaultNode
                     ((DefaultNode) context.getLastNode()).addChild(node);
                 }
 
             }
         }
-
+        // context 中的 curNode(当前节点) 设置为新的 node
         context.setCurNode(node);
-        // 触发下一个节点
+        // 由 AbstractLinkedProcessorSlot 触发下一个 Slot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 

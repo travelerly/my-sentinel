@@ -48,7 +48,8 @@ public class DefaultController implements TrafficShapingController {
     // 快速失败的流控效果中的通过性判断
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
-        // 获取当前时间窗中已经统计的数据
+
+        // 获取当前时间窗中已经统计的请求量
         int curCount = avgUsedTokens(node);
 
         /**
@@ -73,6 +74,7 @@ public class DefaultController implements TrafficShapingController {
             }
             return false;
         }
+        // 小于，说明在阈值范围内，请求通过，返回 true
         return true;
     }
 

@@ -137,6 +137,7 @@ public class SentinelAutoConfiguration {
 
 	/**
 	 * sentinel 核心源码解析入口
+	 * sentinel 资源切面
 	 * 若容器中没有 SentinelResourceAspect，则创建一个 SentinelResourceAspect。
 	 * 采用 AOP 的方式实现
 	 * @return

@@ -209,8 +209,11 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     private final Function<String, Collection<FlowRule>> ruleProvider = new Function<String, Collection<FlowRule>>() {
         @Override
         public Collection<FlowRule> apply(String resource) {
-            // Flow rule map should not be null.
-            // 获取所有资源的流控规则。（map 的 key 为资源名称，value 为该资源上加载的所有流控规则）
+            /**
+             * 获取所有资源的流控规则。（map 的 key 为资源名称，value 为该资源上加载的所有流控规则）
+             * FlowRuleManager 流控规则管理器，
+             * 其中 private static final Map<String, List<FlowRule>> flowRules 缓存了所有流控规则
+             */
             Map<String, List<FlowRule>> flowRules = FlowRuleManager.getFlowRuleMap();
             // 获取指定资源的所有流控规则
             return flowRules.get(resource);

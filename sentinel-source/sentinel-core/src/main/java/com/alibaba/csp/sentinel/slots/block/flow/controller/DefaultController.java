@@ -45,7 +45,14 @@ public class DefaultController implements TrafficShapingController {
         return canPass(node, acquireCount, false);
     }
 
-    // 快速失败的流控效果中的通过性判断
+    /**
+     * 快速失败的流控效果中的通过性判断
+     * 基于滑动时间窗口算法
+     * @param node resource node
+     * @param acquireCount count to acquire
+     * @param prioritized whether the request is prioritized
+     * @return
+     */
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
 

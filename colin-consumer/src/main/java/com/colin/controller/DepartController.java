@@ -13,8 +13,7 @@ public class DepartController {
     @Autowired
     private RestTemplate restTemplate;
 
-    @SentinelResource(value = "getDepartById",
-            fallback = "getHandlerFallback")
+    @SentinelResource(value = "getDepartById",fallback = "getHandlerFallback")
     @GetMapping("/consumer/depart/get/{id}")
     public Depart getHandle(@PathVariable("id") int id) {
         String url = "http://colin-provider/provider/depart/get/" + id;
@@ -33,18 +32,5 @@ public class DepartController {
         depart.setName("资源被限流降级了-" + id);
         return depart;
     }
-
-    /**
-     * ?????????????????
-     * 处理非 Sentinel 规则限制抛出的 Throwable 的方法，比如业务异常
-     * @param id
-     * @return
-     */
-    /*public Depart getHandlerBlock(int id) {
-        Depart depart = new Depart();
-        depart.setId(id);
-        depart.setName("发生业务异常-" + id);
-        return depart;
-    }*/
 
 }

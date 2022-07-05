@@ -48,9 +48,9 @@ public class FlowRuleChecker {
         }
 
         /**
-         * 获取指定资源的所有流控规则，即获取到 Sentinel 控制台中配置的流控规则。
-         * 获取所有资源的流控规则
-         * Map<String, List<FlowRule>> flowRules 的 key 为资源名称，value 为该资源上加载的所有流控规则）
+         * 获取指定资源的所有流控规则，即获取到 Sentinel 控制台中配置的当前资源的流控规则。
+         * Map<String, List<FlowRule>> flowRules 缓存了所有流控规则的数据
+         * key 为资源名称，value 为该资源上加载的所有流控规则）
          */
         Collection<FlowRule> rules = ruleProvider.apply(resource.getName());
         if (rules != null) {
@@ -104,7 +104,7 @@ public class FlowRuleChecker {
         }
 
         /**
-         * rule.getRater()：现获取流量控制器 TrafficShapingController，然后在做限流：
+         * rule.getRater()：现获取流量控制器 TrafficShapingController(有三个实现类，即三种流控效果)，然后再做限流：
          * canPass()：使用规则进行逐项检测判断
          * DefaultController：           快速失败的流控规则判断，默认的方式，基于滑动时间窗口算法
          * RateLimiterController：       排队等待判断，基于漏桶算法

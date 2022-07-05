@@ -102,7 +102,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             throw ex;
         } finally {
             if (entry != null) {
-                // 清空 entry 中的 context 防止重复调用。(目标方法执行完毕之后，或应用流控规则时未通过后执行）
+                // 目标方法执行完毕之后，或应用流控规则时未通过后执行
                 entry.exit(1, pjp.getArgs());
             }
         }

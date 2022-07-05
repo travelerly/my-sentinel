@@ -33,6 +33,7 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
         @Override
         public void entry(Context context, ResourceWrapper resourceWrapper, Object t, int count, boolean prioritized, Object... args)
             throws Throwable {
+            // 调用下一个节点
             super.fireEntry(context, resourceWrapper, t, count, prioritized, args);
         }
 

@@ -174,6 +174,7 @@ public class CtSph implements Sph {
         try {
             /**
              * 执行 Slot 执行链，即执行 SlotChain 中的每一个 Slot。
+             * 按照责任链的顺序，逐个执行每一个 slot
              * DefaultProcessorSlotChain#entry()
              */
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
@@ -247,7 +248,7 @@ public class CtSph implements Sph {
                     }
 
                     /**
-                     * 创建新的 SlotChain
+                     * 初始化新的 SlotChain
                      * 使用 SPI 机制构建 Slot，会加载很多的 Slot，并且是按照顺序加载：
                      * NodeSelectorSlot：调用链路构建
                      * ClusterBuilderSlot：统计簇点构建
@@ -260,6 +261,7 @@ public class CtSph implements Sph {
                      * 最后将所有 slot 逐个添加到 SlotChain 中
                      */
                     chain = SlotChainProvider.newSlotChain();
+
                     // 缓存新建的 SlotChain。（避免出现迭代稳定性问题）
                     Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
                         chainMap.size() + 1);

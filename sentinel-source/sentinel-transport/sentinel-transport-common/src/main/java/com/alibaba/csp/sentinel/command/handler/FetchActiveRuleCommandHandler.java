@@ -35,6 +35,7 @@ public class FetchActiveRuleCommandHandler implements CommandHandler<String> {
     public CommandResponse<String> handle(CommandRequest request) {
         String type = request.getParam("type");
         if ("flow".equalsIgnoreCase(type)) {
+            // 获取流控规则，通过流控规则管理器，从缓存中查找
             return CommandResponse.ofSuccess(JSON.toJSONString(FlowRuleManager.getRules()));
         } else if ("degrade".equalsIgnoreCase(type)) {
             return CommandResponse.ofSuccess(JSON.toJSONString(DegradeRuleManager.getRules()));

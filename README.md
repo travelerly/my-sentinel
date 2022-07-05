@@ -584,3 +584,237 @@ Sentinel 底层采用高性能的滑动窗口数据结构 `LeapArray` 来统计�
 ### 使用统计数据
 
 <img src="img/Sentinel滑动时间窗算法源码解析—使用统计数据.png" />
+
+---
+
+## Sentinel 持久化
+
+### Sentinel 持久化的模式
+
+1. 原始模式，数据只保存在内存中，Dashboard 的推送规则方式是通过 API 将规则推送至客户端并直接更新到内存中。服务重启后，数据会丢失。
+
+2. Pull 模式，数据由控制台推送给客户端，客户端扩展写数据源(WritableDataSource)，将数据写入某个文件、数据库或配置中心，同时，客户端负责定期轮询从文件、数据库或配置中心拉取数据，此种方式可以保证服务重启后，数据不会丢失，但无法保证数据的一致性和实时性，并且拉取频繁的话可能还会出现新能问题。
+
+    > Pull 模式的数据源（如本地文件、RDBMS 等）一般是可写入的。使用时需要在客户端注册数据源：将对应的读数据源注册至对应的 RuleManager，将写数据源注册至 transport 的 WritableDataSourceRegistry 中。
+    >
+    > 首先 Sentinel 控制台通过 API 将规则推送至客户端并更新到内存中，接着注册的写数据源会将新的规则保存到本地的文件中。使用 pull 模式的数据源时一般不需要对 Sentinel 控制台进行改造。这种实现方法好处是简单，坏处是无法保证监控数据的一致性。 
+    >
+    > 数据源的加载和初始化，可以通过 Sentinel 的 SPI 机制进行加载，即实现 InitFunc 接口，在这个实现类中实现数据源的创建等相关逻辑。
+
+3. Push 模式，数据由控制台推送值配置中心，配置中心统一推送给客户端，客户端扩展读数据源(ReadableDataSource)，通过注册监听器的方式时刻监听配置中心的数据变化，能更好的保证数据的实时性和一致性，但此种方式 sentinel 未做实现，需第三方实现。
+
+    > Sentinel Dashboard 监听 Nacos 配置的变化，如发生变化就更新本地缓存。在 Sentinel Dashboard 端新增或修改规则配置在保存到内存的同时，直接发布配置到 nacos 配置中心；Sentinel Dashboard 直接从 nacos 拉取所有的规则配置。Sentinel Dashboard 和 Sentinel client 不直接通信，而是通过 nacos 配置中心获取到配置的变更。
+    >
+    > 从 Sentinel 1.4.0 开始，Sentinel 控制台提供 DynamicRulePublisher 和 DynamicRuleProvider 接口用于实现应用维度的规则推送和拉取：
+    >
+    > - DynamicRulePublisher<T>：推送规则
+    > - DynamicRuleProvider<T>：拉取规则
+
+
+
+### Naocs 配置中心实现 Push 模型
+
+#### sentinel-dashboard 端改造
+
+sentinel-dashboard 模块针对每种流控规则分别实现 DynamicRulePublisher 接口和 DynamicRuleProvider 接口。用于与 Nacos 配置中心通信，实现流控规则数据推送至配置中心和从配置中心拉取流控规则数据。
+
+```java
+// 用于向配置中心推送数据
+@Component("flowRuleNacosPublisher")
+public class FlowRuleNacosPublisher implements DynamicRulePublisher<List<FlowRuleEntity>> {
+
+    @Autowired
+    private ConfigService configService;
+
+    @Override
+    public void publish(String app, List<FlowRuleEntity> rules) throws Exception {
+        AssertUtil.notEmpty(app,"app name cannot be empty");
+
+        if (rules == null){
+            return;
+        }
+
+        // 发布配置到 nacos 配置中心
+        configService.publishConfig(app+ NacosConfigUtil.FLOW_DATA_ID_POSTFIX,
+                NacosConfigUtil.GROUP_ID,NacosConfigUtil.convertToRule(rules));
+    }
+}
+
+// 用于从数据中心拉取数据
+@Component("flowRuleNacosProvider")
+public class FlowRuleNacosProvider implements DynamicRuleProvider<List<FlowRuleEntity>> {
+
+    @Autowired
+    private ConfigService configService;
+
+    @Override
+    public List<FlowRuleEntity> getRules(String appName,String ip,Integer port) throws NacosException {
+
+        // 从 nacos 配置中心拉取配置
+        String rules = configService.getConfig(appName + NacosConfigUtil.FLOW_DATA_ID_POSTFIX,
+                NacosConfigUtil.GROUP_ID, NacosConfigUtil.READ_TIMEOUT);
+
+        if (StringUtil.isEmpty(rules)){
+            return new ArrayList<>();
+        }
+
+        // 解析 json 获取到 List<FlowRule>
+        List<FlowRule> list = JSON.parseArray(rules, FlowRule.class);
+
+        // 客户端规则实体是：FlowRule ===> 控制台规则实体是：FlowRuleEntity
+        return list
+                .stream()
+                .map(rule -> FlowRuleEntity.fromFlowRule(appName,ip,port,rule))
+                .collect(Collectors.toList());
+    }
+}
+```
+
+然后改造控制台的规则处理器，即 sentinel-dashboard 模块的 controller 包中的各种处理器，例如流控规则处理器，FlowControllerV1，其内有处理流控规则的增删改查的方法，在这些方法内，使用前面创建的组件，替换相应位置的逻辑，以查询流控规则列表和新增流控规则为例：
+
+```java
+@Autowired
+@Qualifier("flowRuleNacosProvider")
+private DynamicRuleProvider flowRuleNacosProvider;
+
+@Autowired
+@Qualifier("flowRuleNacosPublisher")
+private DynamicRulePublisher flowRuleNacosPublisher;
+
+/**
+ * 查询流控规则列表
+ */
+@GetMapping("/rules")
+@AuthAction(PrivilegeType.READ_RULE)
+public Result<List<FlowRuleEntity>> apiQueryMachineRules(@RequestParam String app,@RequestParam String ip,@RequestParam Integer port) {
+
+    // ……
+    
+    try {
+        // List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+
+        // 从配置中心获取规则配置
+        List<FlowRuleEntity> rules = (List<FlowRuleEntity>) flowRuleNacosProvider.getRules(app, ip, port);
+
+        if (rules !=null && !rules.isEmpty()){
+            for (FlowRuleEntity entity : rules) {
+                entity.setApp(app);
+                if (entity.getClusterConfig() != null && entity.getClusterConfig().getFlowId() != null){
+                    entity.setId(entity.getClusterConfig().getFlowId());
+                }
+            }
+        }
+
+        rules = repository.saveAll(rules);
+        return Result.ofSuccess(rules);
+    } catch (Throwable throwable) {
+        logger.error("Error when querying flow rules", throwable);
+        return Result.ofThrowable(-1, throwable);
+    }
+}
+
+/**
+ * 控制台新增流控规则，并将此推送流控规则至客户端
+ * @param entity 流控规则数据会被封装成 FlowRuleEntity 对象
+ */
+@PostMapping("/rule")
+@AuthAction(PrivilegeType.WRITE_RULE)
+public Result<FlowRuleEntity> apiAddFlowRule(@RequestBody FlowRuleEntity entity) {
+    /**
+     * 校验流控规则实体，流控规则数据会被封装成 FlowRuleEntity 对象
+     */
+    Result<FlowRuleEntity> checkResult = checkEntityInternal(entity);
+    if (checkResult != null) {
+        return checkResult;
+    }
+    entity.setId(null);
+    Date date = new Date();
+    entity.setGmtCreate(date);
+    entity.setGmtModified(date);
+    entity.setLimitApp(entity.getLimitApp().trim());
+    entity.setResource(entity.getResource().trim());
+    try {
+        /**
+         * 控制台保存流控规则
+         * 扩展点：可保存在 mysql、nacos config、redis……
+         */
+        entity = repository.save(entity);
+
+        /**
+         * 控制台向 Nacos 配置中心推送新增的流控规则
+         */
+        publishRules(entity.getApp());
+        return Result.ofSuccess(entity);
+    } catch (Throwable t) {
+        Throwable e = t instanceof ExecutionException ? t.getCause() : t;
+        logger.error("Failed to add new flow rule, app={}, ip={}", entity.getApp(), entity.getIp(), e);
+        return Result.ofFail(-1, e.getMessage());
+    }
+}
+
+private void publishRules(/*@NonNull*/ String app) throws Exception {
+    List<FlowRuleEntity> rules = repository.findAllByApp(app);
+    // 控制台向 Nacos 配置中心推送新增的流控规则
+    flowRuleNacosPublisher.publish(app, rules);
+}
+```
+
+控制台配置 nacos 配置中心地址
+
+```java
+@Configuration
+public class NacosConfig {
+
+    @Value("${sentinel.nacos.config.serverAddr}")
+    private String serverAddr;
+
+    @Bean
+    public ConfigService nacosConfigService() throws Exception {
+        return ConfigFactory.createConfigService(serverAddr);
+    }
+}
+```
+
+
+
+#### 客户端配置
+
+引入 sentinel 数据源扩展包依赖
+
+```xml
+<dependency>
+    <groupId>com.alibaba.csp</groupId>
+    <artifactId>sentinel-datasource-nacos</artifactId>
+</dependency>
+```
+
+配置文件配置 sentinel 相关配置
+
+```yaml
+server:
+  port: 8081
+
+spring:
+  application:
+    name: colin-consumer
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 47.100.54.86:8488
+    sentinel:
+      transport:
+        # sentinel 的控制台地址
+        dashboard: localhost:8888
+      datasource:
+        flow-rules:
+          nacos:
+            server-addr: 47.100.54.86:8488
+            data-id: colin-consumer-flow-rules
+            group-id: SENTINEL_GROUP
+            data-type: json
+            rule-type: flow
+        # 其它流控规则……
+```
+
+
+

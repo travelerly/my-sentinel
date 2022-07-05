@@ -15,12 +15,9 @@
  */
 package com.alibaba.csp.sentinel.demo.file.rule;
 
-import java.net.URLDecoder;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.datasource.Converter;
-import com.alibaba.csp.sentinel.datasource.ReadableDataSource;
 import com.alibaba.csp.sentinel.datasource.FileRefreshableDataSource;
+import com.alibaba.csp.sentinel.datasource.ReadableDataSource;
 import com.alibaba.csp.sentinel.property.PropertyListener;
 import com.alibaba.csp.sentinel.property.SentinelProperty;
 import com.alibaba.csp.sentinel.slots.block.Rule;
@@ -32,6 +29,9 @@ import com.alibaba.csp.sentinel.slots.system.SystemRule;
 import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+
+import java.net.URLDecoder;
+import java.util.List;
 
 /**
  * <p>
@@ -74,15 +74,23 @@ public class FileDataSourceDemo {
     }
 
     private void listenRules() throws Exception {
+        // 类加载器
         ClassLoader classLoader = getClass().getClassLoader();
+        // 加载数据文件路径
         String flowRulePath = URLDecoder.decode(classLoader.getResource("FlowRule.json").getFile(), "UTF-8");
         String degradeRulePath = URLDecoder.decode(classLoader.getResource("DegradeRule.json").getFile(), "UTF-8");
         String systemRulePath = URLDecoder.decode(classLoader.getResource("SystemRule.json").getFile(), "UTF-8");
 
-        // Data source for FlowRule
+        /**
+         * 此类会周期性的读取文件以获取规则数据，当文件有内容更新时，会及时发现，并将规则更新到内存中。
+         * Data source for FlowRule
+         */
         FileRefreshableDataSource<List<FlowRule>> flowRuleDataSource = new FileRefreshableDataSource<>(
             flowRulePath, flowRuleListParser);
+        // 将文件刷新数据源注册进规则管理器中，规则管理器会注册数据监听器，用于监听数据的变化
         FlowRuleManager.register2Property(flowRuleDataSource.getProperty());
+
+        // 以下为其它规则刷新数据源，逻辑同上。
 
         // Data source for DegradeRule
         FileRefreshableDataSource<List<DegradeRule>> degradeRuleDataSource

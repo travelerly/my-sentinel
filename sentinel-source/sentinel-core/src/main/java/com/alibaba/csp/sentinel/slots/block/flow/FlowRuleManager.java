@@ -15,6 +15,15 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow;
 
+import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.node.metric.MetricTimerListener;
+import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
+import com.alibaba.csp.sentinel.property.PropertyListener;
+import com.alibaba.csp.sentinel.property.SentinelProperty;
+import com.alibaba.csp.sentinel.util.AssertUtil;
+import com.alibaba.csp.sentinel.util.StringUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
-import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.util.AssertUtil;
-import com.alibaba.csp.sentinel.util.StringUtil;
-import com.alibaba.csp.sentinel.node.metric.MetricTimerListener;
-import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
-import com.alibaba.csp.sentinel.property.PropertyListener;
-import com.alibaba.csp.sentinel.property.SentinelProperty;
-
 /**
+ * 流控规则管理器
  * <p>
  * One resources can have multiple rules. And these rules take effects in the following order:
  * <ol>
@@ -46,8 +47,14 @@ import com.alibaba.csp.sentinel.property.SentinelProperty;
  */
 public class FlowRuleManager {
 
+    /**
+     * 保存所有的流控规则
+     */
     private static final Map<String, List<FlowRule>> flowRules = new ConcurrentHashMap<String, List<FlowRule>>();
 
+    /**
+     * 流控规则监听器
+     */
     private static final FlowPropertyListener LISTENER = new FlowPropertyListener();
     private static SentinelProperty<List<FlowRule>> currentProperty = new DynamicSentinelProperty<List<FlowRule>>();
 
@@ -68,15 +75,20 @@ public class FlowRuleManager {
      */
     public static void register2Property(SentinelProperty<List<FlowRule>> property) {
         AssertUtil.notNull(property, "property cannot be null");
+        /**
+         * 设置读规则数据源监听器
+         */
         synchronized (LISTENER) {
             RecordLog.info("[FlowRuleManager] Registering new property to flow rule manager");
             currentProperty.removeListener(LISTENER);
+            // 注册监听器，用于监听流控规则数据的变更
             property.addListener(LISTENER);
             currentProperty = property;
         }
     }
 
     /**
+     * 获取流控规则数据
      * Get a copy of the rules.
      *
      * @return a new copy of the rules.
@@ -90,6 +102,7 @@ public class FlowRuleManager {
     }
 
     /**
+     * 加载流控规则
      * Load {@link FlowRule}s, former rules will be replaced.
      *
      * @param rules new rules to load.
@@ -124,13 +137,26 @@ public class FlowRuleManager {
         return true;
     }
 
+    /**
+     * 流控规则监听器
+     */
     private static final class FlowPropertyListener implements PropertyListener<List<FlowRule>> {
 
+        /**
+         * 监听器监听变更回调方法，数据发生变更，回调此方法，更新数据，先清空原有数据，在重新添加新数据
+         * @param value updated value.
+         */
         @Override
         public void configUpdate(List<FlowRule> value) {
             Map<String, List<FlowRule>> rules = FlowRuleUtil.buildFlowRuleMap(value);
             if (rules != null) {
+                /**
+                 * 流控规则数据发生变更，清空内存中原有缓存
+                 */
                 flowRules.clear();
+                /**
+                 * 重新加载流控规则数据，将数据保存在内存中
+                 */
                 flowRules.putAll(rules);
             }
             RecordLog.info("[FlowRuleManager] Flow rules received: " + flowRules);

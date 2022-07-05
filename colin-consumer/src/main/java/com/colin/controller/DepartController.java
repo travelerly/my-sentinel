@@ -18,14 +18,33 @@ public class DepartController {
     @GetMapping("/consumer/depart/get/{id}")
     public Depart getHandle(@PathVariable("id") int id) {
         String url = "http://colin-provider/provider/depart/get/" + id;
+        int i = 1 / id;
         return restTemplate.getForObject(url, Depart.class);
     }
 
+    /**
+     * 处理 blockHandler 的方法，即处理限流、熔断降级
+     * @param id
+     * @return
+     */
     public Depart getHandlerFallback(int id) {
         Depart depart = new Depart();
         depart.setId(id);
-        depart.setName("degrade-method-" + id);
+        depart.setName("资源被限流降级了-" + id);
         return depart;
     }
+
+    /**
+     * ?????????????????
+     * 处理非 Sentinel 规则限制抛出的 Throwable 的方法，比如业务异常
+     * @param id
+     * @return
+     */
+    /*public Depart getHandlerBlock(int id) {
+        Depart depart = new Depart();
+        depart.setId(id);
+        depart.setName("发生业务异常-" + id);
+        return depart;
+    }*/
 
 }

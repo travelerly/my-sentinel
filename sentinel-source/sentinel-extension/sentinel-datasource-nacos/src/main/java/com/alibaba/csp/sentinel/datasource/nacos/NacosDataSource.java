@@ -15,13 +15,6 @@
  */
 package com.alibaba.csp.sentinel.datasource.nacos;
 
-import java.util.Properties;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
 import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
 import com.alibaba.csp.sentinel.datasource.AbstractDataSource;
 import com.alibaba.csp.sentinel.datasource.Converter;
@@ -32,6 +25,9 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
+
+import java.util.Properties;
+import java.util.concurrent.*;
 
 /**
  * A read-only {@code DataSource} with Nacos backend. When the data in Nacos backend has been modified,
@@ -91,6 +87,9 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
         this.groupId = groupId;
         this.dataId = dataId;
         this.properties = properties;
+        /**
+         * 配置中心添加监听器，配置发生变更，会回调 receiveConfigInfo() 方法
+         */
         this.configListener = new Listener() {
             @Override
             public Executor getExecutor() {
@@ -101,12 +100,15 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
             public void receiveConfigInfo(final String configInfo) {
                 RecordLog.info(String.format("[NacosDataSource] New property value received for (properties: %s) (dataId: %s, groupId: %s): %s",
                     properties, dataId, groupId, configInfo));
+                // 解析变更数据
                 T newValue = NacosDataSource.this.parser.convert(configInfo);
-                // Update the new value to the property.
+                // 更新并保存变更数据。Update the new value to the property.
                 getProperty().updateValue(newValue);
             }
         };
+        // 初始化监听器（内有监听器绑定数据 id 逻辑）
         initNacosListener();
+        // 加载配置
         loadInitialConfig();
     }
 
@@ -138,6 +140,7 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
         if (configService == null) {
             throw new IllegalStateException("Nacos config service has not been initialized or error occurred");
         }
+        // 从 nacos 配置中心拉取指定数据
         return configService.getConfig(dataId, groupId, DEFAULT_TIMEOUT);
     }
 

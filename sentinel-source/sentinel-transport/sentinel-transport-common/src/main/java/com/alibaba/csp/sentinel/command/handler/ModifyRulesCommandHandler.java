@@ -15,31 +15,32 @@
  */
 package com.alibaba.csp.sentinel.command.handler;
 
-import java.net.URLDecoder;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.command.CommandHandler;
 import com.alibaba.csp.sentinel.command.CommandRequest;
 import com.alibaba.csp.sentinel.command.CommandResponse;
 import com.alibaba.csp.sentinel.command.annotation.CommandMapping;
 import com.alibaba.csp.sentinel.datasource.WritableDataSource;
 import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.util.StringUtil;
-import com.alibaba.csp.sentinel.util.VersionUtil;
 import com.alibaba.csp.sentinel.slots.block.authority.AuthorityRule;
 import com.alibaba.csp.sentinel.slots.block.authority.AuthorityRuleManager;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
-import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
 import com.alibaba.csp.sentinel.slots.system.SystemRule;
+import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
+import com.alibaba.csp.sentinel.util.StringUtil;
+import com.alibaba.csp.sentinel.util.VersionUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+
+import java.net.URLDecoder;
+import java.util.List;
 
 import static com.alibaba.csp.sentinel.transport.util.WritableDataSourceRegistry.*;
 
 /**
+ * 规则设置处理器，用来处理控制台推送过来的规则
  * @author jialiang.linjl
  * @author Eric Zhao
  */
@@ -56,8 +57,10 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
             return CommandResponse.ofFailure(new RuntimeException("The \"fastjson-" + JSON.VERSION
                     + "\" introduced in application is too old, you need fastjson-1.2.12 at least."));
         }
+
+        // 判断规则类型，例如：流控规则 flow
         String type = request.getParam("type");
-        // rule data in get parameter
+        // 规则数据。rule data in get parameter
         String data = request.getParam("data");
         if (StringUtil.isNotEmpty(data)) {
             try {
@@ -73,11 +76,26 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
         String result = "success";
 
         if (FLOW_RULE_TYPE.equalsIgnoreCase(type)) {
+            // 流控规则
+
+            // 解析请求数据(控制台推送过来的)
             List<FlowRule> flowRules = JSONArray.parseArray(data, FlowRule.class);
+            // 保存(控制台推送过来的)流控规则数据
             FlowRuleManager.loadRules(flowRules);
+
+            /**
+             * 是一个持久化的扩展点
+             * getFlowDataSource()：获取写数据源
+             *                      例如通过实现 WritableDataSourceRegistry#registerFlowDataSource()，就可以持久化流控规则数据
+             * writeToDataSource()：持久化流控规则数据，写数据扩展点，可以自定义实现方式，例如写入到文件、nacos 配置中心
+             *
+             * 例如通过 WritableDataSource 的实现类，将其注册进 WritableDataSourceRegistry 中，
+             * 这样控制台将数据推送至客户端时，客户端会先将数据保存至内存中，再将数据持久化到数据源中（例如，文件中，配置中心中）
+             */
             if (!writeToDataSource(getFlowDataSource(), flowRules)) {
                 result = WRITE_DS_FAILURE_MSG;
             }
+            // 向控制台返回结果
             return CommandResponse.ofSuccess(result);
         } else if (AUTHORITY_RULE_TYPE.equalsIgnoreCase(type)) {
             List<AuthorityRule> rules = JSONArray.parseArray(data, AuthorityRule.class);

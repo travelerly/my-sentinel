@@ -47,12 +47,17 @@ public class FlowRuleChecker {
             return;
         }
 
-        // 获取指定资源的所有流控规则，即获取到 Sentinel 控制台中配置的流控规则。
+        /**
+         * 获取指定资源的所有流控规则，即获取到 Sentinel 控制台中配置的流控规则。
+         * 获取所有资源的流控规则
+         * Map<String, List<FlowRule>> flowRules 的 key 为资源名称，value 为该资源上加载的所有流控规则）
+         */
         Collection<FlowRule> rules = ruleProvider.apply(resource.getName());
         if (rules != null) {
             // 逐个应用流控规则，若无法通过，则抛出异常，后续规则不再应用
             for (FlowRule rule : rules) {
                 if (!canPassCheck(rule, context, node, count, prioritized)) {
+                    // 校验不通过，请求被拒绝，抛出异常，会被 StatisticSlot 捕获
                     throw new FlowException(rule.getLimitApp(), rule);
                 }
             }

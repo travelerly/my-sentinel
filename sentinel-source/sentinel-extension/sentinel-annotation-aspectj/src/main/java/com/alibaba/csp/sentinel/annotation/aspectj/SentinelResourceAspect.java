@@ -70,7 +70,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
 
         try {
             /**
-             * 创建资源 Entry，即获取资源的操作对象，在目标方法执行之前执行功能增强，即应用流控规则
+             * 创建资源 Entry，即获取资源的操作对象，在目标方法执行之前进行功能增强，即应用流控规则
              * 要织入的、增强的功能
              * resourceName：资源名称，即注解 @SentinelResource 的 value 属性的值
              */
@@ -84,6 +84,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             // 返回结果
             return result;
         } catch (BlockException ex) {
+            // 处理 Sentinel 发出的异常，回调 blockHandler 方法
             return handleBlockException(pjp, annotation, ex);
         } catch (Throwable ex) {
             Class<? extends Throwable>[] exceptionsToIgnore = annotation.exceptionsToIgnore();
@@ -93,6 +94,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             }
             if (exceptionBelongsTo(ex, annotation.exceptionsToTrace())) {
                 traceException(ex);
+                // 处理非 Sentinel 抛出的异常，即处理业务异常，回调 falllback 方法
                 return handleFallback(pjp, annotation, ex);
             }
 

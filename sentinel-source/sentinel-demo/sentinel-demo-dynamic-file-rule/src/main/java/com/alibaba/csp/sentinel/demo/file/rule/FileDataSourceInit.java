@@ -15,9 +15,6 @@
  */
 package com.alibaba.csp.sentinel.demo.file.rule;
 
-import java.io.File;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.datasource.FileRefreshableDataSource;
 import com.alibaba.csp.sentinel.datasource.FileWritableDataSource;
 import com.alibaba.csp.sentinel.datasource.ReadableDataSource;
@@ -28,6 +25,9 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.alibaba.csp.sentinel.transport.util.WritableDataSourceRegistry;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * <p>
@@ -50,15 +50,21 @@ public class FileDataSourceInit implements InitFunc {
         String flowRuleFile = "flowRule.json";
         String flowRulePath = flowRuleDir + File.separator + flowRuleFile;
 
+        // 读数据源
         ReadableDataSource<String, List<FlowRule>> ds = new FileRefreshableDataSource<>(
             flowRulePath, source -> JSON.parseObject(source, new TypeReference<List<FlowRule>>() {})
         );
-        // Register to flow rule manager.
+        // 读数据源注册进流控规则管理器中。Register to flow rule manager.
         FlowRuleManager.register2Property(ds.getProperty());
 
+        // 写数据源
         WritableDataSource<List<FlowRule>> wds = new FileWritableDataSource<>(flowRulePath, this::encodeJson);
         // Register to writable data source registry so that rules can be updated to file
         // when there are rules pushed from the Sentinel Dashboard.
+        /**
+         * 写数据源注册进 transport 模块的 WritableDataSourceRegistry 中，
+         * 这样收到控制台推送的规则时，Sentinel 会先更新到内存，然后将规则写入到文件中.
+         */
         WritableDataSourceRegistry.registerFlowDataSource(wds);
     }
 

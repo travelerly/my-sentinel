@@ -16,8 +16,6 @@
 
 package com.alibaba.cloud.sentinel;
 
-import java.util.Optional;
-
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.SentinelWebInterceptor;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.BlockExceptionHandler;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.DefaultBlockExceptionHandler;
@@ -26,7 +24,6 @@ import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.UrlCleaner;
 import com.alibaba.csp.sentinel.adapter.spring.webmvc.config.SentinelWebMvcConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,6 +35,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.Optional;
 
 /**
  * @author xiaojing
@@ -68,12 +67,21 @@ public class SentinelWebAutoConfiguration implements WebMvcConfigurer {
 	@Autowired
 	private Optional<SentinelWebInterceptor> sentinelWebInterceptorOptional;
 
+	/**
+	 * SentinelWebAutoConfiguration 实现了 WebMvcConfigurer 接口，容器启动后会调用其此方法
+	 * @param registry
+	 */
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		if (!sentinelWebInterceptorOptional.isPresent()) {
 			return;
 		}
 		SentinelProperties.Filter filterConfig = properties.getFilter();
+		/**
+		 * 这里添加的拦截器，会拦截所有的 web 请求的 url
+		 * sentinelWebInterceptorOptional.get()：得到的就是 SentinelWebInterceptor
+		 * filterConfig.getUrlPatterns()：得到的就是所有路径的通配符 /**
+		 */
 		registry.addInterceptor(sentinelWebInterceptorOptional.get())
 				.order(filterConfig.getOrder())
 				.addPathPatterns(filterConfig.getUrlPatterns());

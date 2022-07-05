@@ -56,6 +56,7 @@ public class DefaultController implements TrafficShapingController {
          * 已经统计的数据与本次请求的数量之和，与设置阈值相比：
          * 若 "大于" 设置的阈值，则返回 false，表示没有通过检测
          * 若 "小于或等于" 设置的阈值，则返回 true，表示通过检测
+         * acquireCount 默认值为 1
          */
         if (curCount + acquireCount > count) {
             if (prioritized && grade == RuleConstant.FLOW_GRADE_QPS) {
@@ -85,8 +86,8 @@ public class DefaultController implements TrafficShapingController {
         }
 
         /**
-         * 若阈值类型为线程数，则直接返回当前的线程数量
-         * 若阈值类型为 QPS，则返回统计的当前 QPS
+         * 若阈值类型为线程数，则直接返回当前的线程数量：node.curThreadNum()
+         * 若阈值类型为 QPS，则返回统计的当前 QPS，采用滑动时间窗算法：node.passQps()
          */
         return grade == RuleConstant.FLOW_GRADE_THREAD ? node.curThreadNum() : (int)(node.passQps());
     }

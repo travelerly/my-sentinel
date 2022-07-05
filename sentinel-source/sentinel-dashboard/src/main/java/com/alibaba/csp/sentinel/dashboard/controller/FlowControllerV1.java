@@ -15,35 +15,37 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
-import com.alibaba.csp.sentinel.util.StringUtil;
-
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.InMemoryRuleRepositoryAdapter;
-
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
+ * 控制台管理流控规则的控制器，赋值流控规则的增删改查等操作。
+ * sentinel 的持久化模式有三种：
+ * 1.原始模式，数据只保存在内存中，Dashboard 的推送规则方式是通过 API 将规则推送至客户端并直接更新到内存中。服务重启后，数据会丢失。
+ * 2.Pull 模式，数据由控制台推送给客户端，客户单扩展写数据源(WritableDataSource)，将数据写入某个文件、数据库或配置中心，
+ *   同时，客户端负责定期轮询从文件、数据库或配置中心拉取数据，此种方式可以保证服务重启后，数据不会丢失，
+ *   但无法保证数据的一致性和实时性，并且拉取频繁的话可能还会出现新能问题。
+ * 3.Push 模式，数据由控制台推送值配置中心，配置中心统一推送给客户端，客户端扩展读数据源(ReadableDataSource)，
+ *   通过注册监听器的方式时刻监听配置中心的数据变化，能更好的保证数据的实时性和一致性，但此种方式 sentinel 未做实现，需第三方实现
+ *
  * Flow rule controller.
  *
  * @author leyou
@@ -61,6 +63,22 @@ public class FlowControllerV1 {
     @Autowired
     private SentinelApiClient sentinelApiClient;
 
+    @Autowired
+    @Qualifier("flowRuleNacosProvider")
+    private DynamicRuleProvider ruleProvider;
+
+    @Autowired
+    @Qualifier("flowRuleNacosPublisher")
+    private DynamicRulePublisher rulePublisher;
+
+    /**
+     * 查询流控规则列表
+     * 向客户单发送查询请求
+     * @param app
+     * @param ip
+     * @param port
+     * @return
+     */
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
     public Result<List<FlowRuleEntity>> apiQueryMachineRules(@RequestParam String app,
@@ -77,7 +95,20 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, "port can't be null");
         }
         try {
-            List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+            // List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+
+            // 从配置中心获取规则配置
+            List<FlowRuleEntity> rules = (List<FlowRuleEntity>) ruleProvider.getRules(app, ip, port);
+
+            if (rules !=null && !rules.isEmpty()){
+                for (FlowRuleEntity entity : rules) {
+                    entity.setApp(app);
+                    if (entity.getClusterConfig() != null && entity.getClusterConfig().getFlowId() != null){
+                        entity.setId(entity.getClusterConfig().getFlowId());
+                    }
+                }
+            }
+
             rules = repository.saveAll(rules);
             return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
@@ -133,9 +164,17 @@ public class FlowControllerV1 {
         return null;
     }
 
+    /**
+     * 控制台新增流控规则，并将此推送流控规则至客户端
+     * @param entity 流控规则数据会被封装成 FlowRuleEntity 对象
+     * @return
+     */
     @PostMapping("/rule")
     @AuthAction(PrivilegeType.WRITE_RULE)
     public Result<FlowRuleEntity> apiAddFlowRule(@RequestBody FlowRuleEntity entity) {
+        /**
+         * 校验流控规则实体，流控规则数据会被封装成 FlowRuleEntity 对象
+         */
         Result<FlowRuleEntity> checkResult = checkEntityInternal(entity);
         if (checkResult != null) {
             return checkResult;
@@ -147,9 +186,18 @@ public class FlowControllerV1 {
         entity.setLimitApp(entity.getLimitApp().trim());
         entity.setResource(entity.getResource().trim());
         try {
+            /**
+             * 控制台保存流控规则
+             * 扩展点：可保存在 mysql、nacos config、redis……
+             */
             entity = repository.save(entity);
 
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            /**
+             * 控制台向客户端推送新增的流控规则
+             * 控制台向客户端发起通信请求
+             */
+            // publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -158,6 +206,21 @@ public class FlowControllerV1 {
         }
     }
 
+    /**
+     * 修改流控规则，并推送至客户端
+     * @param id
+     * @param app
+     * @param limitApp
+     * @param resource
+     * @param grade
+     * @param count
+     * @param strategy
+     * @param refResource
+     * @param controlBehavior
+     * @param warmUpPeriodSec
+     * @param maxQueueingTimeMs
+     * @return
+     */
     @PutMapping("/save.json")
     @AuthAction(PrivilegeType.WRITE_RULE)
     public Result<FlowRuleEntity> apiUpdateFlowRule(Long id, String app,
@@ -168,7 +231,9 @@ public class FlowControllerV1 {
         if (id == null) {
             return Result.ofFail(-1, "id can't be null");
         }
+        // 根据 id 查询缓存中对应的流控规则数据
         FlowRuleEntity entity = repository.findById(id);
+
         if (entity == null) {
             return Result.ofFail(-1, "id " + id + " dose not exist");
         }
@@ -223,12 +288,17 @@ public class FlowControllerV1 {
         Date date = new Date();
         entity.setGmtModified(date);
         try {
+            // 控制台本地保存
             entity = repository.save(entity);
             if (entity == null) {
                 return Result.ofFail(-1, "save entity fail: null");
             }
 
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            // 控制台向客户端发送请求，推送变更的流控规则数据
+            // publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+
+            // 发布至配置中心
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -238,6 +308,11 @@ public class FlowControllerV1 {
         }
     }
 
+    /**
+     * 删除流控规则，并推送值客户端
+     * @param id
+     * @return
+     */
     @DeleteMapping("/delete.json")
     @AuthAction(PrivilegeType.WRITE_RULE)
     public Result<Long> apiDeleteFlowRule(Long id) {
@@ -256,7 +331,11 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
-            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            // publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+
+
+            // 删除
+            publishRules(oldEntity.getApp());
             return Result.ofSuccess(id);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -267,7 +346,18 @@ public class FlowControllerV1 {
     }
 
     private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
+        /**
+         * 从内存中取出所有流控规则(根据机器信息取出)
+         */
         List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+        /**
+         * 异步设置(推送)流控规则，和 sentinel 客户端通信
+         */
         return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
+    }
+
+    private void publishRules(/*@NonNull*/ String app) throws Exception {
+        List<FlowRuleEntity> rules = repository.findAllByApp(app);
+        rulePublisher.publish(app, rules);
     }
 }

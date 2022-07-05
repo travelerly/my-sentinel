@@ -119,7 +119,7 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             // Blocked, set block exception to current entry.
             context.getCurEntry().setBlockError(e);
 
-            // Add block count.
+            // 捕获异常，限流计数器+1。Add block count.
             node.increaseBlockQps(count);
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().increaseBlockQps(count);
@@ -135,6 +135,11 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                 handler.onBlocked(e, context, resourceWrapper, node, count, args);
             }
 
+            /**
+             * 继续抛异常，会被 AOP 拦截器捕获，
+             * 即异常会被 SentinelResourceAspect#invokeResourceWithSentinel() 方法的 catch 捕获
+             * 异常被捕获后，会调用注解 @SentinelResource 中配置的 fallback 方法
+             */
             throw e;
         } catch (Throwable e) {
             // Unexpected internal error, set error to current entry.
@@ -177,7 +182,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         if (node == null) {
             return;
         }
+        // 增加调用完成数和调用执行时间
         node.addRtAndSuccess(rt, batchCount);
+        // 减少当前资源的调用线程数
         node.decreaseThreadNum();
 
         if (error != null && !(error instanceof BlockException)) {

@@ -15,14 +15,15 @@
  */
 package com.alibaba.csp.sentinel.datasource;
 
+import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
+import com.alibaba.csp.sentinel.log.RecordLog;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
-import com.alibaba.csp.sentinel.log.RecordLog;
-
 /**
+ * 自动更新数据源
  * A {@link ReadableDataSource} automatically fetches the backend data.
  *
  * @param <S> source data type
@@ -45,21 +46,27 @@ public abstract class AutoRefreshDataSource<S, T> extends AbstractDataSource<S, 
             throw new IllegalArgumentException("recommendRefreshMs must > 0, but " + recommendRefreshMs + " get");
         }
         this.recommendRefreshMs = recommendRefreshMs;
+        // 定时任务
         startTimerService();
     }
 
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
     private void startTimerService() {
+        // 包含一个线程的线程池
         service = Executors.newScheduledThreadPool(1,
             new NamedThreadFactory("sentinel-datasource-auto-refresh-task", true));
+        // 定时任务，每隔 3s 执行一次
         service.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 try {
                     if (!isModified()) {
+                        // 若文件没有变化，直接返回
                         return;
                     }
+                    // 加载文件
                     T newValue = loadConfig();
+                    // 更新数据
                     getProperty().updateValue(newValue);
                 } catch (Throwable e) {
                     RecordLog.info("loadConfig exception", e);

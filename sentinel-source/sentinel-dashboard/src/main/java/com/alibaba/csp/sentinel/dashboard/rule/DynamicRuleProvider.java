@@ -15,11 +15,19 @@
  */
 package com.alibaba.csp.sentinel.dashboard.rule;
 
+import com.alibaba.nacos.api.exception.NacosException;
+
 /**
  * @author Eric Zhao
  * @since 1.4.0
  */
 public interface DynamicRuleProvider<T> {
 
-    T getRules(String appName) throws Exception;
+    default T getRules(String appName) throws Exception{
+        return null;
+    }
+
+    default T getRules(String appName,String ip,Integer port) throws NacosException{
+        return null;
+    }
 }

@@ -107,6 +107,7 @@ class CtEntry extends Entry {
             } else {
                 // Go through the onExit hook of all slots.
                 if (chain != null) {
+                    // 按照责责任链中 slot 的顺序逐个应用其 exit() 方法
                     chain.exit(context, resourceWrapper, count, args);
                 }
                 // Go through the existing terminate handlers (associated to this invocation).

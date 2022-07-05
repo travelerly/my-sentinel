@@ -7,4 +7,10 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: 47.100.54.86:8488
+    sentinel:
+      transport:
+        port: 8719
+        dashboard: localhost:8888
+      # 该配置能够使 dashboard 主动发现该应用
+      eager: true

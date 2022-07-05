@@ -41,11 +41,11 @@ public class DefaultSlotChainBuilder implements SlotChainBuilder {
         ProcessorSlotChain chain = new DefaultProcessorSlotChain();
 
         /**
-         * 使用 SPI 机制构建 Slot，会加载很多的 Slot，并且是按照顺序加载：
-         * NodeSelectorSlot、ClusterBuilderSlot、LogSlot、StatisticSlot、AuthoritySlot、SystemSlot、ParamFlowSlot、FlowSlot、DegradeSlot
-         * Note: the instances of ProcessorSlot should be different, since they are not stateless.
+         * 使用 SPI 机制构建 Slot，会加载 ProcessorSlot 文件中配置的所有 Slot，并且是按照顺序加载：
+         * List<ProcessorSlot> sortedSlotList = {NodeSelectorSlot,ClusterBuilderSlot,LogSlot,StatisticSlot,AuthoritySlot,SystemSlot,ParamFlowSlot,FlowSlot,DegradeSlot}
          */
         List<ProcessorSlot> sortedSlotList = SpiLoader.loadPrototypeInstanceListSorted(ProcessorSlot.class);
+
         for (ProcessorSlot slot : sortedSlotList) {
             if (!(slot instanceof AbstractLinkedProcessorSlot)) {
                 RecordLog.warn("The ProcessorSlot(" + slot.getClass().getCanonicalName() + ") is not an instance of AbstractLinkedProcessorSlot, can't be added into ProcessorSlotChain");

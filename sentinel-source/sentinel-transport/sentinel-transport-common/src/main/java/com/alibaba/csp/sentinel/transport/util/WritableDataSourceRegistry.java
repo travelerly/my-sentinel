@@ -1,12 +1,12 @@
 package com.alibaba.csp.sentinel.transport.util;
 
-import java.util.List;
-
 import com.alibaba.csp.sentinel.datasource.WritableDataSource;
 import com.alibaba.csp.sentinel.slots.block.authority.AuthorityRule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.system.SystemRule;
+
+import java.util.List;
 
 /**
  * Writable data source registry for modifying rules via HTTP API.
@@ -20,6 +20,10 @@ public final class WritableDataSourceRegistry {
     private static WritableDataSource<List<DegradeRule>> degradeDataSource = null;
     private static WritableDataSource<List<SystemRule>> systemSource = null;
 
+    /**
+     * 注册流控规则的写数据源
+     * @param datasource
+     */
     public static synchronized void registerFlowDataSource(WritableDataSource<List<FlowRule>> datasource) {
         flowDataSource = datasource;
     }

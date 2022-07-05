@@ -18,6 +18,8 @@ package com.alibaba.csp.sentinel.datasource;
 import com.alibaba.csp.sentinel.property.SentinelProperty;
 
 /**
+ * 读数据源接口
+ * 有很多是实现类，例如 NacosDataSource
  * The readable data source is responsible for retrieving configs (read-only).
  *
  * @param <S> source data type

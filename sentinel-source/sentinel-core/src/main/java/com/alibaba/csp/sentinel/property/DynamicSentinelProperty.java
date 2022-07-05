@@ -15,11 +15,11 @@
  */
 package com.alibaba.csp.sentinel.property;
 
+import com.alibaba.csp.sentinel.log.RecordLog;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
-import com.alibaba.csp.sentinel.log.RecordLog;
 
 public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
 
@@ -40,6 +40,7 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
         listener.configLoad(value);
     }
 
+
     @Override
     public void removeListener(PropertyListener<T> listener) {
         listeners.remove(listener);
@@ -54,6 +55,7 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
 
         value = newValue;
         for (PropertyListener<T> listener : listeners) {
+            // 监听器监听规则发生变更，触发此方法，更新数据(例如流控规则，先清空原有规则，再重新添加最新数据)
             listener.configUpdate(newValue);
         }
         return true;

@@ -54,7 +54,7 @@ public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                       boolean prioritized, Object... args) throws Throwable {
         // 熔断降级规则判断
         performChecking(context, resourceWrapper);
-        // 由 AbstractLinkedProcessorSlot 触发下一个节点
+        // 由 AbstractLinkedProcessorSlot 触发下一个节点（执行目标方法）
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
@@ -83,6 +83,7 @@ public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             fireExit(context, r, count, args);
             return;
         }
+        // 获取当前资源的所有熔断器
         List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
         if (circuitBreakers == null || circuitBreakers.isEmpty()) {
             fireExit(context, r, count, args);
@@ -94,8 +95,8 @@ public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             for (CircuitBreaker circuitBreaker : circuitBreakers) {
                 /**
                  * 两种熔断策略：
-                 * ExceptionCircuitBreaker：异常比例熔断
-                 * ResponseTimeCircuitBreaker：
+                 * ExceptionCircuitBreaker：调用异常数比例判断逻辑
+                 * ResponseTimeCircuitBreaker：慢调用比例降级判断逻辑
                  */
                 circuitBreaker.onRequestComplete(context);
             }

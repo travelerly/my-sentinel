@@ -15,13 +15,13 @@
  */
 package com.alibaba.csp.sentinel.init;
 
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.spi.ServiceLoaderUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.spi.ServiceLoaderUtil;
 
 /**
  * Load registered init functions and execute in order.
@@ -43,6 +43,10 @@ public final class InitExecutor {
             return;
         }
         try {
+            /**
+             * SPI 机制加载 InitFunc 的实现类
+             * 可以利用 InitFunc 的实现类来实现持久化拉模式的读/写数据源的配置
+             */
             ServiceLoader<InitFunc> loader = ServiceLoaderUtil.getServiceLoader(InitFunc.class);
             List<OrderWrapper> initList = new ArrayList<OrderWrapper>();
             for (InitFunc initFunc : loader) {
@@ -50,6 +54,7 @@ public final class InitExecutor {
                 insertSorted(initList, initFunc);
             }
             for (OrderWrapper w : initList) {
+                // 初始化组件
                 w.func.init();
                 RecordLog.info(String.format("[InitExecutor] Executing %s with order %d",
                     w.func.getClass().getCanonicalName(), w.order));

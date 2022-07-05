@@ -74,41 +74,57 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         }
         long rt = completeTime - entry.getCreateTimestamp();
         if (rt > maxAllowedRt) {
+            // 响应时间超出阈值，慢请求计数器+1
             counter.slowCount.add(1);
         }
+        // 总请求计数器+1
         counter.totalCount.add(1);
 
+        // 处理熔断器状态
         handleStateChangeWhenThresholdExceeded(rt);
     }
 
     private void handleStateChangeWhenThresholdExceeded(long rt) {
+        // 断路器当前状态是 OPEN
         if (currentState.get() == State.OPEN) {
             return;
         }
-        
+
+        // 断路器当前状态是 HALF_OPEN
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
             if (rt > maxAllowedRt) {
+                // 若当前熔断器的状态是 HALF_OPEN，且本次请求的响应时间超出阈值，则将熔断器的状态由 HALF_OPEN 转为 OPEN 状态
                 fromHalfOpenToOpen(1.0d);
             } else {
+                // 若当前熔断器的状态是 HALF_OPEN，且本次请求的响应时间未超出阈值，则将熔断器的状态由 HALF_OPEN 转为 CLOSE 状态
                 fromHalfOpenToClose();
             }
             return;
         }
 
+
+        // 断路器当前状态是 CLOSE
+
+
         List<SlowRequestCounter> counters = slidingCounter.values();
         long slowCount = 0;
         long totalCount = 0;
         for (SlowRequestCounter counter : counters) {
+            // 统计慢调用次数
             slowCount += counter.slowCount.sum();
+            // 统计调用的总次数
             totalCount += counter.totalCount.sum();
         }
         if (totalCount < minRequestAmount) {
             return;
         }
+
+        // 计算慢调用比例
         double currentRatio = slowCount * 1.0d / totalCount;
         if (currentRatio > maxSlowRequestRatio) {
+            // 若慢调用比例超出阈值，则打开熔断器，即将熔断器的状态修改为 OPEN
             transformToOpen(currentRatio);
         }
     }

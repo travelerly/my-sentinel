@@ -67,14 +67,16 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     public boolean tryPass(Context context) {
         // Template implementation.
         if (currentState.get() == State.CLOSED) {
-            // 熔断器为关闭状态，则请求可以通过
+            // 熔断器为关闭状态，则请求可以直接通过
             return true;
         }
 
         /**
          * 熔断器状态为打开状态，此时再查看：
-         * 若下次时间窗时间点已经到达，且熔断器状态由 open 变为了 half-open，则请求通过
-         * 通过 CAS 将状态由 OPEN 修改为 HALF_OPEN。修改成功，则返回 true，否则返回 false。
+         * retryTimeoutArrived()：计算当前时间 是否超过了上次熔断时间 + 熔断窗口时间，
+         * fromOpenToHalfOpen(context)：采用 CAS 的方式将断路器由 OPEN 状态改为 HALF_OPEN状态，即表示可以尝试性发送请求
+         * 若当前时间已经超过了上次熔断的窗口时间，则表示熔断结束，则尝试将断路器由 OPEN 状态改为 HALF_OPEN 状态
+         * 修改成功返回 true，否则返回 false
          */
         if (currentState.get() == State.OPEN) {
             // For half-open state we allow a request for probing.
@@ -101,7 +103,9 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
 
     protected boolean fromCloseToOpen(double snapshotValue) {
         State prev = State.CLOSED;
+        // 使用 CAS 的方式则将熔断器的状态由 CLOSED 转为 OPEN 状态
         if (currentState.compareAndSet(prev, State.OPEN)) {
+            // 计算熔断窗口时间
             updateNextRetryTimestamp();
 
             notifyObservers(prev, State.OPEN, snapshotValue);
@@ -111,7 +115,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     protected boolean fromOpenToHalfOpen(Context context) {
-        // 基于 CAS 修改状态，从 open 到 half_open
+        // 使用 CAS 的方式则将熔断器的状态由 OPEN 转为 HALF_OPEN 状态
         if (currentState.compareAndSet(State.OPEN, State.HALF_OPEN)) {
             // 状态变更的事件通知
             notifyObservers(State.OPEN, State.HALF_OPEN, null);
@@ -145,7 +149,9 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     protected boolean fromHalfOpenToOpen(double snapshotValue) {
+        // 使用 CAS 的方式则将熔断器的状态由 HALF_OPEN 转为 OPEN 状态
         if (currentState.compareAndSet(State.HALF_OPEN, State.OPEN)) {
+            // 熔断器再次被打开，则重置设置熔断器的熔断周期
             updateNextRetryTimestamp();
             notifyObservers(State.HALF_OPEN, State.OPEN, snapshotValue);
             return true;
@@ -154,7 +160,9 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     protected boolean fromHalfOpenToClose() {
+        // 使用 CAS 的方式则将熔断器的状态由 HALF_OPEN 转为 CLOSED 状态
         if (currentState.compareAndSet(State.HALF_OPEN, State.CLOSED)) {
+            // 熔断器关闭，重置熔断器慢调用总和统计数为 0
             resetStat();
             notifyObservers(State.HALF_OPEN, State.CLOSED, null);
             return true;

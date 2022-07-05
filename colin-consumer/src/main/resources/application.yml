@@ -7,11 +7,23 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
-
+        server-addr: 47.100.54.86:8488
     sentinel:
       transport:
-        port: 8719
+        # sentinel 的控制台地址
         dashboard: localhost:8888
-      # 该配置能够使dashboard主动发现该应用
-      eager: true
+        # 指定应用于 sentinel 控制台交互的端口，应用本地会起一个该端口占用的 HttpServer
+        # port: 8719
+      # 该配置能够使 dashboard 主动发现该应用
+      # eager: true
+      datasource:
+        flow-rules:
+          nacos:
+            server-addr: 47.100.54.86:8488
+            data-id: colin-consumer-flow-rules
+            group-id: SENTINEL_GROUP
+            data-type: json
+            rule-type: flow
+
+  main:
+    allow-bean-definition-overriding: true

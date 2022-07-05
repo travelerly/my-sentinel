@@ -54,7 +54,11 @@ public final class SlotChainProvider {
             RecordLog.info("[SlotChainProvider] Global slot chain builder resolved: "
                 + slotChainBuilder.getClass().getCanonicalName());
         }
-        // 使用 builder 创建 SlotChain
+
+        /**
+         * 使用 builder 构建 SlotChain
+         * 构建资源的 slot 校验链条，每个资源都有自己独立的校验链条，类似于 Netty 的 pipeline
+         */
         return slotChainBuilder.build();
     }
 

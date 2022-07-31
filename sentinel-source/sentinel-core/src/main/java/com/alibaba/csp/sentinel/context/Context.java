@@ -177,6 +177,12 @@ public class Context {
      * @return the parent node of the current.
      */
     public Node getLastNode() {
+        /**
+         * 如果 curEntry 不存在时，返回 entranceNode，否则返回 curEntry 的 lastNode
+         * 需要注意的是 curEntry 的 lastNode 是获取的是 parent 的 curNode，
+         * 如果每次进入的资源不同，就会每次都创建一个 CtEntry，则 parent 为 null，
+         * 所以 curEntry.getLastNode() 也为 null
+         */
         if (curEntry != null && curEntry.getLastNode() != null) {
             return curEntry.getLastNode();
         } else {

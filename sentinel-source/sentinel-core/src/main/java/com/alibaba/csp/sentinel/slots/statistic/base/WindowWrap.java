@@ -82,6 +82,7 @@ public class WindowWrap<T> {
     }
 
     /**
+     * 判断某个时间戳有没有在这个时间窗内
      * Check whether given timestamp is in current bucket.
      *
      * @param timeMillis valid timestamp in ms
@@ -89,6 +90,7 @@ public class WindowWrap<T> {
      * @since 1.5.0
      */
     public boolean isTimeInWindow(long timeMillis) {
+        // 时间窗起始时间 与 结束时间之间
         return windowStart <= timeMillis && timeMillis < windowStart + windowLengthInMs;
     }
 

@@ -92,7 +92,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StatisticNode implements Node {
 
     /**
-     * 定义了一个使用数组保存数据的计量器（以"秒"为单位）
+     * 定义了一个使用数组保存数据的计量器（以"秒"为单位），即秒级的滑动时间窗口
      * SAMPLE_COUNT：样本窗口数量，默认值为 2
      * INTERVAL：时间窗长度，默认值为 1000 毫秒
      *
@@ -103,13 +103,14 @@ public class StatisticNode implements Node {
         IntervalProperty.INTERVAL);
 
     /**
-     * 定义了一个使用数组保存数据的计量器（以"分"为单位）
+     * 定义了一个使用数组保存数据的计量器（以"分"为单位），即分钟级的滑动时间窗口
      * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately set to 1000 milliseconds,
      * meaning each bucket per second, in this way we can get accurate statistics of each second.
      */
     private transient Metric rollingCounterInMinute = new ArrayMetric(60, 60 * 1000, false);
 
     /**
+     * 线程个数
      * The counter for thread count.
      */
     private LongAdder curThreadNum = new LongAdder();

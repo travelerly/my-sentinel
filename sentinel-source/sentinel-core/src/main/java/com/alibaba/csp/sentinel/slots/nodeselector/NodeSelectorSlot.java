@@ -123,6 +123,7 @@ import java.util.Map;
  * @see EntranceNode
  * @see ContextUtil
  */
+// 负责搜集资源的路径，并将这些资源的调用路径，以树状结构存储起来，用于根据调用路径限流降级
 @SpiOrder(-10000)
 public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
 
@@ -132,11 +133,13 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
     private volatile Map<String, DefaultNode> map = new HashMap<String, DefaultNode>(10);
 
     /**
-     * NodeSelectorSlot 完成了以下几件事：
-     * 1.为当前资源创建 DefaultNode
-     * 2.将 DefaultNode 放入缓存中，key 是 contextName，这样不同链路入口的请求，将会创建多个 DefaultNode，相同链路则只有一个 DefaultNode
-     * 3.将当前资源的 DefaultNode 设置为上一个资源的 childNode
-     * 4.将当前资源的 DefaultNode 设置为 Context 中的 curNode(当前节点)
+     * NodeSelectorSlot 负责搜集资源的路径，并将这些资源的调用路径，以树状结构存储起来，用于根据调用路径限流降级
+     * 完成了以下几件事：
+     * 1.获取当前 Context 对应的 DefaultNode，如果没有的话，为当前的调用新生成一个 DefaultNode 节点，
+     *   他的作用是对资源进行各种统计度量以便进行流控，将 DefaultNode 放入缓存中，key 是 contextName，这样不同链路入口的请求，
+     *   将会创建多个 DefaultNode，相同链路则只有一个 DefaultNode
+     * 2.将新创建的 DefaultNode 节点，添加到 Context 中，作为 entranceNode 或者 curEntry.parent.curNode 的子节点
+     * 3.将 DefaultNode 节点添加到 Context 中，作为 curEntry 的 curNode
      *
      * @param context         current {@link Context}
      * @param resourceWrapper current resource
@@ -167,7 +170,12 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
-        // 尝试从缓存中获取当前资源的 DefaultNode
+        /**
+         * 尝试从缓存中获取当前资源的 DefaultNode
+         * 根据 Context 的名称获取 DefaultNode
+         * 多线程环境下，每个线程都会创建一个 Context
+         * 只要资源名相同，则 Context 的名称也相同，那么获取到的节点就相同
+         */
         DefaultNode node = map.get(context.getName());
         // DCL
         if (node == null) {
@@ -175,7 +183,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                 node = map.get(context.getName());
                 if (node == null) {
 
-                    // 如果为空，则为当前资源创建一个新的 DefaultNode，并放入到缓存 map 中
+                    // 如果为空，即，当前 Context 中没有该节点，则为当前资源创建一个新的 DefaultNode，并放入到缓存 map 中
                     node = new DefaultNode(resourceWrapper, null);
                     HashMap<String, DefaultNode> cacheMap = new HashMap<String, DefaultNode>(map.size());
                     cacheMap.putAll(map);
@@ -183,13 +191,23 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                     cacheMap.put(context.getName(), node);
                     map = cacheMap;
 
-                    // 将当前节点加入上一节点的 child 中，这样就构成了调用链路树，EntranceNode → DefaultNode
+                    /**
+                     * 将当前节点加入上一节点的 child 中，这样就构成了调用链路树，EntranceNode → DefaultNode
+                     * 将当前 node 作为 Context 的最后一个节点的子节点添加进去
+                     * 如果 Context 的 curEntry.parent.curNode 为 null，则添加到 entranceNode 中去
+                     * 否则添加到 Context 的 curEntry.parent.curNode 中
+                     */
                     ((DefaultNode) context.getLastNode()).addChild(node);
                 }
 
             }
         }
-        // context 中的 curNode(当前节点) 设置为新的 node
+        /**
+         * context 中的 curNode(当前节点) 设置为新的 node
+         * 将该节点设置为 Context 中的当前节点
+         * 实际是将当前节点赋值给 Context 中的 curEntry 的 curNode
+         * 在 Context 的 getLastNode 方法中会用到此处设置的 curNode
+         */
         context.setCurNode(node);
         // 由 AbstractLinkedProcessorSlot 触发下一个 Slot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);

@@ -45,6 +45,7 @@ import java.util.Objects;
  * @author jialiang.linjl
  * @author Eric Zhao
  */
+// 熔断规则
 public class DegradeRule extends AbstractRule {
 
     public DegradeRule() {}
@@ -54,22 +55,26 @@ public class DegradeRule extends AbstractRule {
     }
 
     /**
+     * 熔断策略，支持慢调用比例、异常比例、异常数等策略，模式为慢调用比例；
      * Circuit breaking strategy (0: average RT, 1: exception ratio, 2: exception count).
      */
     private int grade = RuleConstant.DEGRADE_GRADE_RT;
 
     /**
+     * 慢调用比例模式下为慢调用临界 RT（超出该值计为慢调用）；异常比例/异常数模式下为对应的阈值；
      * Threshold count.
      */
     private double count;
 
     /**
+     * 熔断时长，单位为秒
      * Recovery timeout (in seconds) when circuit breaker opens. After the timeout, the circuit breaker will
      * transform to half-open state for trying a few requests.
      */
     private int timeWindow;
 
     /**
+     * 熔断触发的最小强求数，请求数小于该值时，即使异常比例超出阈值也不会熔断。
      * Minimum number of requests (in an active statistic time span) that can trigger circuit breaking.
      *
      * @since 1.7.0
@@ -77,10 +82,14 @@ public class DegradeRule extends AbstractRule {
     private int minRequestAmount = RuleConstant.DEGRADE_DEFAULT_MIN_REQUEST_AMOUNT;
 
     /**
+     * 慢调用比例阈值，仅慢调用比例模式有效
      * The threshold of slow request ratio in RT mode.
      */
     private double slowRatioThreshold = 1.0d;
 
+    /**
+     * 统计时长，单位为毫秒 ms，例如：60 * 1000 代表分钟级
+     */
     private int statIntervalMs = 1000;
 
     public int getGrade() {

@@ -29,19 +29,26 @@ import com.alibaba.csp.sentinel.slots.statistic.base.LongAdder;
 public class MetricBucket {
 
     /**
-     * 统计的数据存放在这里
+     * 用于保存统计的数据，即保存统计值
      * 这里要统计的数据是多维度的，这些维度类型在 MetricEvent 枚举中
+     * 每一个枚举对应一个统计项，好比 PASS 表示经过个数，限流可根据经过的个数和设置的限流规则配置 count 大小进行比较，得出是否触发限流操作
+     * MetricEvent 中的全部全部枚举：{PASS，BLOCK，EXCEPTION，SUCCESS，RT，OCCUPIED_PASS}
      */
     private final LongAdder[] counters;
 
+    /**
+     * 最小 RT
+     */
     private volatile long minRt;
 
     public MetricBucket() {
+        // 创建各个事件
         MetricEvent[] events = MetricEvent.values();
         this.counters = new LongAdder[events.length];
         for (MetricEvent event : events) {
             counters[event.ordinal()] = new LongAdder();
         }
+        // 初始化最小 RT
         initMinRt();
     }
 
@@ -109,7 +116,7 @@ public class MetricBucket {
         return get(MetricEvent.SUCCESS);
     }
 
-    public void     addPass(int n) {
+    public void addPass(int n) {
         // 向 PASS 维度中增加统计数据
         add(MetricEvent.PASS, n);
     }

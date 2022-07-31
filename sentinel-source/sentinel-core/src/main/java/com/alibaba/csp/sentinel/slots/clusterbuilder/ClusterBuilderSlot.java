@@ -89,6 +89,7 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
                 if (clusterNode == null) {
                     // 若为空，则创建一个新的 ClusterNode。Create the cluster node.
                     clusterNode = new ClusterNode(resourceWrapper.getName(), resourceWrapper.getResourceType());
+                    // 将 clusterNode 保存到全局 map 中去
                     HashMap<ResourceWrapper, ClusterNode> newMap = new HashMap<>(Math.max(clusterNodeMap.size(), 16));
                     newMap.putAll(clusterNodeMap);
                     // 将新的 ClusterNode 放入缓存中，key 为 nodeId，也就是 resourceName

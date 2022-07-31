@@ -4,6 +4,12 @@
 
 [Awesome Sentinel](./awesome-sentinel.md)
 
+## Sentinel 原理流程图
+
+<img src="img/Sentinel 原理流程图.png" style="zoom:25%;" />
+
+---
+
 ## Sentinel 是什么？
 
 Sentinel 是分布式系统的防御系统。以流量为切入点，通过动态设置的流量控制、服务熔断降级、系统负载保护等多个维度保护服务的稳定性，通过服务降级增强服务被拒后用户的体验。
@@ -1980,6 +1986,3 @@ spring:
             rule-type: flow
         # 其它流控规则……
 ```
-
-
-

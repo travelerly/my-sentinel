@@ -167,7 +167,7 @@ public class ContextUtil {
 
             // 将 context 的 name 与 EntranceNode 封装为 context
             context = new Context(node, name);
-            // 初始化 context 的来源
+            // 初始化 context 的来源，默认为 ""
             context.setOrigin(origin);
             // 将 context 保存到 ThreadLocal 中
             contextHolder.set(context);

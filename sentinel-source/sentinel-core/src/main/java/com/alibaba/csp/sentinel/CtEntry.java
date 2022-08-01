@@ -125,6 +125,7 @@ class CtEntry extends Entry {
                 if (parent == null) {
                     // Default context (auto entered) will be exited automatically.
                     if (ContextUtil.isDefaultContext(context)) {
+                        // 清除 Context
                         ContextUtil.exit();
                     }
                 }

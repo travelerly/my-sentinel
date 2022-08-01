@@ -71,7 +71,7 @@ Sentinel 实现限流、隔离、降级、熔断功能，本质要做的就是�
 
     > 资源：可以是任何东西，如引用程序提供的服务、RPC 接口方法、甚至是一段代码。只要通过 Sentinel API 定义的代码，就是资源，就能够被 Sentinel 保护起来。
     >
-    > 发部分情况下，可以使用方法签名、URL、甚至服务名称作为资源名来标识资源。
+    > 大部分情况下，可以使用方法签名、URL、甚至服务名称作为资源名来标识资源。
     >
     > 资源注解 @SentinelResource，用于定义资源，并提供可选的异常处理和 fallback 配置项。@SentinelResource 注解包含以下属性：
     >
@@ -110,7 +110,7 @@ Sentinel 实现限流、隔离、降级、熔断功能，本质要做的就是�
 
 #### 系统保护规则 SystemRule：
 
-- 系统保护规则是从应用级别的入口流量进行控制，从单台机器的总体 Load、RT、入口 QPS 和线程数四个维度监控应用数据，让系统尽可能跑在最大的吞吐量的同时保证系统整体的稳定性
+- 系统保护规则是从应用级别的入口流量进行控制，从单台机器的总体 Load、RT、入口 QPS 和线程数，这四个维度监控应用数据，让系统尽可能跑在最大的吞吐量的同时保证系统整体的稳定性
 - 系统保护规则是应用整体维度的，而不是资源维度的，并且仅对入口流量生效。入口流量指的是进入应用的流量（`EntryType.IN`），比如 Web 服务或 Dubbo 服务端接收的请求，都属于入口流量。
 
 
@@ -138,7 +138,7 @@ Sentinel 实现限流、隔离、降级、熔断功能，本质要做的就是�
 
 系统保护规则是从应用级别的入口流量进行控制，从单台机器的 load、CPU 使用率、平均 RT、并发线程和入口 QPS等几个维度监控应用指标，让系统尽可能跑在最大吞吐量的同时，保证系统整体的稳定性。
 
-系统保护规则是应用整体维度的，而不是资源维度的，并且仅对入口流量生效。入口流量值得是进入应用的流量（EntryType.IN），比如 web 服务或 Dubbo 服务端接收的请求，都属于入口流量。
+系统保护规则是应用整体维度的，而不是资源维度的，并且仅对入口流量生效。入口流量指的是进入应用的流量（EntryType.IN），比如 web 服务或 Dubbo 服务端接收的请求，都属于入口流量。
 
 系统规则的参数说明：
 
@@ -198,7 +198,7 @@ SystemRuleManager.loadRules(srules);
 
 降级策略之异常数 DEGRADE_GREAD_EXCEPTION_COUNT：
 
-- 当资源进 1 分钟的异常数超过阈值之后，会进行熔断；
+- 当资源近 1 分钟的异常数超过阈值之后，会进行熔断；
 - 注意由于统计时间窗口是分钟级别的，若 timeWindow 小于 60s，则结束熔断状态后，任可能再进入熔断状态。
 
 
@@ -216,7 +216,7 @@ SystemRuleManager.loadRules(srules);
 - strategy：调用关系限流策略，判断的依据是资源本身（模型形式），还是根据其它关联资源，还是根据链路入口。
 - controlBehavior：流量控制效果（直接拒绝、Warm Up、匀速排队）
 
-流控的几种 strategy 策略:
+流控的几种 strategy 策略(模式):
 
 - 直接：当达到限流条件时，直接限流
 - 关联：当关联资源达到阈值时，就限流自己
@@ -224,13 +224,13 @@ SystemRuleManager.loadRules(srules);
 
 ##### 流控策略之关联模式：
 
-- 调用关系包括调用方和被调用方，一个方法可能会调用其它方法，形成一个调用链路的层级关系。Sentinel 通过 NodeSelectorSlot 建立不同资源间的调用关系，并且通过 ClusterBuilderSlot 记录每个资源的试试统计信息。
+- 调用关系包括调用方和被调用方，一个方法可能会调用其它方法，形成一个调用链路的层级关系。Sentinel 通过 NodeSelectorSlot 建立不同资源间的调用关系，并且通过 ClusterBuilderSlot 记录每个资源的实时统计信息了；
 - 当两个资源之间具有资源争抢或依赖关系的时候，这两个资源便具有了关联。例如对数据库同一个字段的读操作和写操作存在争抢，读的速度过高会影响写的速度，写的速度过高会影响读的速度。如果放任读写操作争抢资源，则争抢本身带来的开销会降低整体的吞吐量，可使用关联限流来避免具有关联关系的资源之间过渡的争抢。
 - 举例来说，read_db 和 write_db 这两个资源分别代表数据库读和写，可以给 read_db 设置限流规则来达到写优先的目的：设置 strategy 为 `RuleConstant.STRATEGY_RELATE`，同时设置 refResource 为 write_db，这样当写库操作过于频繁时，读数据的请求就会被限流。
 
 <img src="img/流控规则-关联.jpg" style="zoom:20%;" />
 
-##### 流控策略之预热（Wram up）模式：
+##### 流控效果之预热（Wram up）：
 
 当流量突然增大的时候，通常希望系统从空闲状态到忙碌状态的切换时间稍长一些。即如果系统在此之前长期处于空闲的状态，希望处理请求的数量是缓步增多的，经过预期的时间之后，到达系统处理请求个数的最大值。Warm up（冷启动、预热）模式就是为了实现这个目的的。
 
@@ -244,17 +244,17 @@ SystemRuleManager.loadRules(srules);
 
 如秒杀系统在开启瞬间，会有很多流量上来，很可能把系统打死，预热方式就是为了保护系统，可慢慢的把流量放进来，慢慢的把阈值增长到设置的阈值。
 
-##### 流控策略之匀速排队模式：
+##### 流控效果之匀速排队：
 
-匀速排队（RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER）方式会严格控制请求通过的时间间隔，也即是让请求以均匀的速度通过，对应的算法时漏桶算法，阈值必须设置为 QPS。
+匀速排队（RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER）方式会严格控制请求通过的时间间隔，也即是让请求以均匀的速度通过，对应的算法是**漏桶算法**，阈值类型必须设置为 QPS。
 
-这种方式主要用于处理间隔性突发的流量，例如消息队列。若谋一秒有大量的请求到来，而接下来的几秒则处于空闲状态，则希望系统能够在接下来的空闲期间逐渐处理这些请求，而不是在第一秒就直接拒绝多余的请求。
+这种方式主要用于处理间隔性突发的流量，例如消息队列。若某一秒有大量的请求到来，而接下来的几秒则处于空闲状态，则希望系统能够在接下来的空闲期间逐渐处理这些请求，而不是在第一秒就直接拒绝多余的请求。
 
 某瞬时来了大量请求，而如果此时要处理所有请求，则可能会导致系统负载过高，影响稳定性。但其实可能后面几秒之内没有消息投递，若直接把多余的消息丢掉则没有充分利用系统处理消息的能力。Sentinel 的 Rate Limiter 模式能在某一段时间间隔内以匀速的方式处理这样的请求，充分利用系统的处理能力，也就是削峰填谷，保证资源的稳定性。
 
 Sentinel 会以固定的间隔时间让请求通过，以访问资源。当请求到来的时候，如果当前请求距离上一个通过的请求的时间间隔不小于预设值，则让当前请求通过；否则，计算当前请求的预期通过时间，如果请求的预期通过时间小于规则预设的 timeout 时间，则该请求回等待直到预设时间到来再通过，反之，则马上抛出阻塞异常。
 
-使用Sentinel 的这种策略，就是使用一个时间段（比如 20s 的时间内）处理某一瞬间产生的大量请求，起到一个削峰填谷的作用，从而充分利用系统的处理能力，例如下图展示的场景，X 轴代表时间，Y 轴代表系统处理的请求：
+使用 Sentinel 的这种策略，就是使用一个时间段（比如 20s 的时间内）处理某一瞬间产生的大量请求，起到一个削峰填谷的作用，从而充分利用系统的处理能力，例如下图展示的场景，X 轴代表时间，Y 轴代表系统处理的请求：
 
 <img src="img/流控规则-匀速排队.jpg" style="zoom:20%;" />
 
@@ -285,7 +285,7 @@ Sentinel 会以固定的间隔时间让请求通过，以访问资源。当请�
 黑白名单控制规则的主要配置项：
 
 - resource：资源名，即限流规则的作用对象；
-- limitApp：对应的黑名单/白名单，不同 origin 用逗号“，”分割，例如：appA，appB
+- limitApp：对应的黑名单/白名单，不同 origin 用逗号 “，” 分割，例如：appA，appB
 - strategy：限制模式，AUTHORITY_WHITE 为白名单模式，AUTHORITY_BLACK 为黑名单模式，默认为白名单模式
 
 例如希望控制对资源 test 的访问设置白名单，只有来源为 appA 和 appB 的请求才可通过，则可以配置如下白名单规则
@@ -312,12 +312,12 @@ AuthorityRuleManager.loadRules(Collections.singletonList(rule));
 
 #### Resource
 
-Resource 是 Sentinel 中重要的一个概念，Sentinel 通过资源来保护具体的业务代码或其它后方服务，Sentinel 把复杂的逻辑给屏蔽掉了，用户只需要为受保护的代码或服务定义一个资源，然后定义规则就可以了，其余功能都交给 Sentinel 处理。并且资源和规则是结构的，规则甚至可以在运行时动态修改。定义完资源后，就可以通过在程序中埋点来保护自己的服务了，埋点的方式有两种：
+Resource 是 Sentinel 中重要的一个概念，Sentinel 通过资源来保护具体的业务代码或其它后方服务，Sentinel 把复杂的逻辑给屏蔽掉了，用户只需要为受保护的代码或服务定义一个资源，然后定义规则就可以了，其余功能都交给 Sentinel 处理。并且资源和规则是解耦的，规则甚至可以在运行时动态修改。定义完资源后，就可以通过在程序中的埋点来保护自己的服务了，埋点的方式有两种：
 
 - try - catch 方式：通过 SphU.entry(……)，当 catch 到 BlockException 时执行异常处理或 fallback；
-- if - else 方式：通过 SphO.entry(……)，当放回 false 时执行异常处理或 fallback；
+- if - else 方式：通过 SphO.entry(……)，当返回 false 时执行异常处理或 fallback；
 
-以上这两种方式都是通过硬解码的形式定义资源后进行资源埋点的，对业务代码的侵入太大，从 0.1.1 版本开始，Sentinel 加入了注解的支持，可以通过注解来定义资源，具体的注解为：@SentinelResource，通过注解除了可以定义资源外，还可以指定 blockHandler 和 fallback 方法；
+以上这两种方式都是通过硬编码的形式定义资源后进行资源埋点的，对业务代码的侵入太大，从 0.1.1 版本开始，Sentinel 加入了注解的支持，可以通过注解来定义资源，具体的注解为：@SentinelResource，通过注解除了可以定义资源外，还可以指定 blockHandler 和 fallback 方法；
 
 在 Sentinel 中具体表示资源的类是 ResourceWrapper，是一个抽象的包装类，包装了资源的 Name 和 EntryType，其具有两个实现类
 
@@ -328,15 +328,15 @@ Resource 是 Sentinel 中重要的一个概念，Sentinel 通过资源来保护�
 
 #### ProcessorSlotChain
 
-Sentinel 的核心骨架是 ProcessorSlotChain，这个类基于责任链模式来设计，将不同的功能（限流、降级、系统保护等）封装为一个一个的 Slot，请求进入后逐个执行即可。系统会为每个资源创建一套 SlotChain。SlotChain 其实可以分为两部分：统计数据构建部分（statistic）和判断部分（rule checking）
+Sentinel 的核心骨架是 ProcessorSlotChain，这个类基于责任链模式来设计，将不同的功能（限流、降级、系统保护等）封装为一个一个的 Slot，请求进入后逐个执行即可。系统会为每个资源创建一套 SlotChain。SlotChain 其实可以分为两部分：**统计数据构建部分**（statistic）和**判断部分**（rule checking）
 
 责任链中的 SlotChain 分为两大类：
 
-1. 统计数据构建部分（statistic）
+1. **统计数据构建部分**（statistic）
     - NodeSelectorSlot：负责构建簇点链路中的节点（DefaultNode），将这些节点形成链路树
     - ClusterBuilderSlot：负责构建某个资源的 ClusterNode，ClusterNode 可以保存资源的运行信息以及来源信息（origin 名称），例如响应时间、QPS、block 数量、线程数、异常数等
     - StatisticSlot：负责统计实时调用数据，包括运行信息、来源信息等
-2. 规则判断部分（rule checking）
+2. **规则判断部分**（rule checking）
     - AuthoritySlot：负责授权规则（来源控制）
     - SystemSlot：负责系统保护规则
     - ParamFlowSlot：负责热点参数限流规则
@@ -385,36 +385,60 @@ public class Context{
 
 ##### Context 的创建与销毁
 
-每次执行 entry 方法时，就是视图冲破一个资源时，都会生成一个上下文，这个上下文中会保存着调用链的根节点和当前的入口。Context 是通过 ContextUtil 创建的，具体的方法时 trueEntry，代码如下
+每次执行 entry 方法时，就是试图冲破一个资源时，都会生成一个上下文，这个上下文中会保存着调用链的根节点和当前的入口。Context 是通过 ContextUtil 创建的，具体的方法时 trueEnter，代码如下
 
 ```java
-protected static Context trueEntry(String name,String origin){
-    // 先从 ThreadLocal 中获取 Context
+protected static Context trueEnter(String name, String origin) {
+    // 尝试着从 ThreadLocal 中获取 context
     Context context = contextHolder.get();
-    if(context == null){
-        // 如果 ThreadLocal 中获取不到 Context，则根据 name 从 map 中获取根节点，只要是相同的资源名，就能直接从 map 中获取到 node
-        Map<String,DefaultNode> localCacheNameMap = contextNameNodeMap;
+
+    // 若 ThreadLocal 中没有 context，则尝试着从缓存 map（contextNameNodeMap）中获取
+    if (context == null) {
+        // 缓存 map 的 key 为 context 名称；value 为 EntranceNode
+        Map<String, DefaultNode> localCacheNameMap = contextNameNodeMap;
+
+        // 从缓存中获取 EntranceNode
         DefaultNode node = localCacheNameMap.get(name);
-        if(node == null){
-            // 省略部分代码
-            try{
+
+        if (node == null) {
+            if (localCacheNameMap.size() > Constants.MAX_CONTEXT_NAME_SIZE) {
+                setNullContext();
+                // 若缓存 map 的大小超出了context 的阈值，则直接返回 NULL_CONTEXT
+                return NULL_CONTEXT;
+            } else {
                 LOCK.lock();
-                node = contextNameNodeMap.get(name);
-                if(node == null){
-                    // 省略部分代码
-                    // 创建一个新的入口节点
-                    node = new EntranceNode(new StringResourceWrapper(name,EntryType.IN),null);
-                    Constants.ROOT.addChild(node);
-                    // 省略部分代码
+                try {
+                    // 双端检索，为了方式并发创建，再次从缓存中获取 EntranceNode
+                    node = contextNameNodeMap.get(name);
+                    if (node == null) {
+                        if (contextNameNodeMap.size() > Constants.MAX_CONTEXT_NAME_SIZE) {
+                            setNullContext();
+                            return NULL_CONTEXT;
+                        } else {
+                            // 创建一个 EntranceNode
+                            node = new EntranceNode(new StringResourceWrapper(name, EntryType.IN), null);
+                            // 将 EntranceNode 添加到 ROOT 中。Add entrance node.
+                            Constants.ROOT.addChild(node);
+                            /**
+                             * 缓存 EntranceNode
+                             * 为了防止"迭代稳定性问题"，采用此种方式进行缓存，应用的场景是对共享集合的写操作
+                             */
+                            Map<String, DefaultNode> newMap = new HashMap<>(contextNameNodeMap.size() + 1);
+                            newMap.putAll(contextNameNodeMap);
+                            newMap.put(name, node);
+                            contextNameNodeMap = newMap;
+                        }
+                    }
+                } finally {
+                    LOCK.unlock();
                 }
-            }finally{
-                LOCK.unlock();
             }
         }
-        // 创建一个新的 Context，并设置 Context 的根节点，即设置 EntranceNode
-        context = new Context(node,name);
+        // 将 context 的 name 与 EntranceNode 封装为 context
+        context = new Context(node, name);
+        // 初始化 context 的来源
         context.setOrigin(origin);
-        // 将该 Context 保存到 ThreadLocal 中
+        // 将 context 保存到 ThreadLocal 中
         contextHolder.set(context);
     }
     return context;
@@ -424,8 +448,8 @@ protected static Context trueEntry(String name,String origin){
 Context 的创建过程：
 
 1. 先从 ThreadLocal 中获取，如果能获取到，则直接返回，如果获取不到则继续第二步；
-2. 从一个静态的 map 中根据 Context 的名称获取，如果能获取到则直接返回，否则继续第三步；
-3. 加锁后进行一次 double_check，如果还是没能从 map 中获取到，则创建一个 EntranceNode，并把该 EntranceNode 添加到一个全局的 ROOT 节点中，然后将该节点添加到 map 中去；
+2. 从一个静态的 map 中根据 Context 的名称获取 DefaultNode，如果能获取到则直接返回，否则继续第三步；
+3. 加锁后进行一次 double_check，如果还是没能从 map 中获取到 DefaultNode，则创建一个 EntranceNode，并把该 EntranceNode 添加到一个全局的 ROOT 节点中，然后将该节点添加到 map 中去；
 4. 根据 EntranceNode 创建一个 Context，并将该 Context 保存到 ThreadLocal 中，以便下一个请求可以直接获取
 
 ThreadLocal 中保存的 Context 会在 `ContextUtil.exit()` 方法调用时清除，这个方法的调用时机有两种情况：
@@ -433,85 +457,17 @@ ThreadLocal 中保存的 Context 会在 `ContextUtil.exit()` 方法调用时清�
 - 主动调用
 - 当一个入口 Entry 要退出，执行该 Entry 的 trueExit() 方法时，会触发  `ContextUtil.exit()` 方法的调用，但前提条件是，当前 Entry 的父 Entry 为 null，说明该 Entry 是对顶层的根节点，此时才可以清除 Context。
 
-```java
-public void contextDemo() {
-    // 创建一个来自于 appA 访问的 Context，”entranceOne“ 为 Context 的名称，”appA“ 为来源名称
-    ContextUtil.enter("entranceOne", "appA");
-    
-    // Entry 就是一个资源操作对象
-    Entry resource1 = null;
-    Entry resource2 = null;
-    
-    try {
-        // 获取资源 resource1 的 entry
-        resource1 = SphU.entry("resource1");
-        // 代码至此，说明当前对资源 resource1 的请求通过了流控
-        // 对资源 resource1 的相关业务处理。。。
-
-        // 获取资源 resource2 的 entry
-        resource2 = SphU.entry("resource2");
-        // 代码至此，说明当前对资源 resource2 的请求通过了流控
-        // 对资源 resource2 的相关业务处理。。。
-    } catch (BlockException e) {
-        // 代码至此，说明请求被限流，这里执行降级处理
-    } finally {
-        if (resource1 != null) {
-            resource1.exit();
-        }
-        if (resource2 != null) {
-            resource2.exit();
-        }
-    }
-    // 释放 name 为 entranceOne 的 Context
-    ContextUtil.exit();
-
-    // --------------------------------------------------------
-
-    // 创建另一个来自于 appA 访问的 Context，
-    // entranceTwo 为 Context 的 name
-    ContextUtil.enter("entranceTwo", "appA");
-    
-    // Entry 就是一个资源操作对象
-    Entry resource3 = null;
-    
-    try {
-        // 获取资源 resource2 的 entry
-        resource2 = SphU.entry("resource2");
-        // 代码至此，说明当前对资源 resource2 的请求通过了流控
-        // 对资源 resource2 的相关业务处理。。。
-
-
-        // 获取资源 resource3 的 entry
-        resource3 = SphU.entry("resource3");
-        // 代码至此，说明当前对资源 resource3 的请求通过了流控
-        // 对资源 resource3 的相关业务处理。。。
-
-    } catch (BlockException e) {
-        // 代码至此，说明请求被限流，这里执行降级处理
-    } finally {
-        if (resource2 != null) {
-            resource2.exit();
-        }
-        if (resource3 != null) {
-            resource3.exit();
-        }
-    }
-    // 释放 name 为 entranceTwo 的 Context
-    ContextUtil.exit();
-}
-```
-
 
 
 #### Entry
 
-默认情况下，Sentinel 会将 Controller 中的方法作为被保护资源，Entry 表示一次资源操作，内部会保存当前 invocation 信息。在一个 Context 生命周期中多次资源操作，也就是对应多个 Entry，这些 Entry 形成 parent / child 结构保存在 Entry 实例中
+默认情况下，Sentinel 会将 Controller 中的方法作为被保护资源，Entry 表示一次资源操作，内部会保存当前调用信息。在一个 Context 生命周期中多次资源操作，也就是对应多个 Entry，这些 Entry 形成 parent / child 结构保存在 Entry 实例中
 
 - 每一次资源调用都会创建一个 Entry。Entry 包含了资源名、curNode（当前统计节点）、originNode（来源统计节点）等信息。
 
 - CtEntry 为普通的 Entry，在调用 `SphU.entry(xxx)` 的时候创建。特性：Linked entry within current context（内部维护着 parent 和 child）
 
-- **需要注意的一点**：CtEntry 构造函数中会做**调用链的变换**，即将当前 Entry 接到传入 Context 的调用链路上（setUpEntryFor）。
+- **需要注意的一点**：CtEntry 构造函数中会做**调用链的变换**，即将当前 Entry 接到传入 Context 的调用链路上（setUpEntryFor），即若 Context 中的 curEntry 为空，则将当前 CtEntry 设置为 Context 的 curEntry；若 Context 中的 curEntry 不为空，则将当前 ctEntry 设置为 Context 的 curEntry 的 child 属性；
 
 - 资源调用结束时需要 `entry.exit()`。exit 操作会过一遍 slot chain exit，恢复调用栈，exit context 然后清空 entry 中的 context 防止重复调用。
 
@@ -543,11 +499,28 @@ class CtEntry extends Entry {
     ……
 }
 
+private void setUpEntryFor(Context context) {
+    // The entry should not be associated to NullContext.
+    if (context instanceof NullContext) {
+        return;
+    }
+
+    // 获取 Context 中上一次的入口
+    this.parent = context.getCurEntry();
+    if (parent != null) {
+        // 将当前入口设置为上一次入口的子节点
+        ((CtEntry) parent).child = this;
+    }
+    // 设置 Context 的当前入口为该类本身
+    context.setCurEntry(this);
+}
+
 // 声明 Entry 的 API 示例
 try{
     /**
      * 创建 Entry，并应用流控规则
      * 资源名可以使用任意有业务语义的字符串，比如方法名、接口名或其它可唯一标识的字符串
+     * AOP 的环绕通知（前）
      */
     Entry entry = Sphu.entry("resourceName");
     
@@ -557,14 +530,17 @@ try{
 } catch(){
 	// 资源访问阻止，被限流或被降级，在此处进行相应的处理操作
 } finally{
-    // 清空 entry 中的 context 防止重复调用
+    /**
+     * 清空 entry 中的 context 防止重复调用
+     * AOP 环绕通知（后）
+     */
     entry.exit();
 }
 ```
 
 Context 的初始化：
 
-spring-cloud-starteralibaba--sentinel → spring.facotries → SentinelWebAutoConfiguration → @Bean SentinelWebInterceptor → 继承 AbstractSentinelInterceptor → 实现了 HandlerInterceptor → HandlerInterceptor 会拦截所有进入 Controller 的方法，执行 preHandle 前置拦截方法，而 Context 的初始化就是在 preHandle 中完成的。
+spring-cloud-starteralibaba--sentinel → spring.facotries → SentinelWebAutoConfiguration → @Bean SentinelWebInterceptor → 继承 AbstractSentinelInterceptor → 实现了 HandlerInterceptor → HandlerInterceptor 会拦截所有进入 Controller 的方法，执行 preHandle 前置拦截方法，而 Context 的初始化就是在 preHandle 中完成的。即每次调用资源方法时，先通过前置拦截器拦截，初始化 Context，然后再进入到 AOP 的环绕通知，即进入到 Sentinel 的流控逻辑 ……
 
 
 
@@ -734,6 +710,31 @@ Node 的默认实现是 DefaultNode，该类还有一个子类 EntranceNode，Co
     }
     
     /**
+     * LeapArray 是一个环形数组，因为时间是无限的，数组长度不可能无限，因此数组中每一个格子放入一个时间窗口（window），当数组放满后，角标归 0，覆盖最初的时间窗口
+     * 因为滑动窗口最多分成 sampleCount 数量的小窗口，因此数组长度只要大于 sampleCount，那么最近的一个滑动窗口内的 2 个小窗口就用永远不会被覆盖，
+     * 就不用担心旧数据被覆盖的问题了
+     */
+    public abstract class LeapArray<T> {
+    
+        // 样本窗口长度，默认时 500ms，值=intervalInMs / sampleCount
+        protected int windowLengthInMs;
+    
+        // 一个时间窗中包含的样本时间窗数量，默认为 2
+        protected int sampleCount;
+    
+        // 时间窗长度，滑动窗口的时间间隔，默认为 1000ms
+        protected int intervalInMs;
+    
+        // 这是一个数组，元素为 WindowWrap：样本窗口（注意，这里的泛型 T，实际是 MetricBucket 类型 ）
+        protected final AtomicReferenceArray<WindowWrap<T>> array;
+    
+        /**
+         * The conditional (predicate) update lock is used only when current bucket is deprecated.
+         */
+        private final ReentrantLock updateLock = new ReentrantLock();
+    }
+    
+    /**
      * 统计数据的封装类
      */
     public class MetricBucket {
@@ -750,18 +751,55 @@ Node 的默认实现是 DefaultNode，该类还有一个子类 EntranceNode，Co
          */
         private volatile long minRt;
     }
+    
+    /**
+     * 数据统计的维度
+     * @author Eric Zhao
+     */
+    public enum MetricEvent {
+    
+        /**
+         * 通过所有校验规则。Normal pass.
+         */
+        PASS,
+    
+        /**
+         * 没有通过校验规则，抛出 BlockException 的调用。Normal block.
+         */
+        BLOCK,
+    
+        /**
+         * 发生了正常的业务异常的调用
+         */
+        EXCEPTION,
+    
+        /**
+         * 调用完成的情况，不管是否抛出了异常
+         */
+        SUCCESS,
+    
+        /**
+         * 所有 SUCCESS 调用耗费的总时间
+         */
+        RT,
+    
+        /**
+         * 未来使用，预占用。Passed in future quota (pre-occupied, since 1.5.0).
+         */
+        OCCUPIED_PASS
+    }
     ```
-
+    
     
 
-DefaultNode 记录的是资源在当前链路中的访问数据，用来实现基于链路模式的限流规则。ClusterNode 记录的是资源在所有链路中的访问数据，实现默认模式、关联模式的限流规则。
+DefaultNode 记录的是资源在当前链路中的访问数据，用来实现基于链路模式的限流规则，实现默认模式、关联模式的限流规则。
 
 例如一个 MVC 项目中，两个业务接口：
 
 - 业务 1：Controller 中的资源 /order/query 访问了 Service 中的资源 /cat
 - 业务 2：Controller 中的资源 /order/save 访问了 Service 中的资源 /cat
 
-创建的链路图如下：
+Sentinel 中各 node 之间的关系：
 
 <img src="img/Node 间关系图.jpg" style="zoom: 15%;" />
 
@@ -773,7 +811,7 @@ DefaultNode 记录的是资源在当前链路中的访问数据，用来实现�
 
 几种 Node 的维度（数目）：
 
-- ClusterNode 的维度是 resource
+- ClusterNode 的维度是资源 resource
 - DefaultNode 的维度是 resource * context，存在每个 NodeSelectorSlot 的 map 里面
 - EntranceNode 的维度是 context，存在 ContextUtil 类的 contextNameNodeMap 里面
 - 来源节点（类型为 StatisticNode）的维度是 resource * origin，存在每个 ClusterNode 的 originCountMap 里面
@@ -798,7 +836,7 @@ Sentinel 槽链中各 Slot 的执行顺序是固定好的。但并不是绝对�
 
 ### Slot 简介
 
-Slot 是 Sentinel 中很重要的概念，Sentinel 的工作流程就是围绕着一个个插槽锁组成的插槽链来展开的，每一个插槽都有本身的职责，他们各司其职，无缺的配合，经过必定的编排顺序，来达到最终的限流降级的目的。默认的各个插槽之间的顺序是固定的，由于有的插槽必须要依赖其余插槽计算出来的结果才能进行工作。
+Slot 是 Sentinel 中很重要的概念，Sentinel 的工作流程就是围绕着一个个插槽所组成的插槽链来展开的，每一个插槽都有本身的职责，他们各司其职，无缺的配合，经过特定的编排顺序，来达到最终的限流降级的目的。默认的各个插槽之间的顺序是固定的，由于有的插槽必须要依赖其余插槽计算出来的结果才能进行工作。
 
 Sentinel 经过 SlotChainBuilder 作为 SPI 接口，使得 Slot Chain 具有了扩展的能力。能够通过实现 SlotChainBuilder 接口来加入自定义的 Slot，并自定义编排各个 Slot 之间的顺序，从而能够给 Sentinel 添加自定义的功能。
 
@@ -939,7 +977,7 @@ CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context co
 
 ###### 创建 Context
 
-cont 初始化时，Context 中的 curEntry 属性是没有值的，如下所示：
+Context 初始化时，Context 中的 curEntry 属性是没有值的，如下所示：
 
 <img src="img/创建 Context.jpg" style="zoom: 20%;" />
 
@@ -947,7 +985,7 @@ cont 初始化时，Context 中的 curEntry 属性是没有值的，如下所示
 
 每创建一个新 Entry 对象，都会重新设置 Context 的 curEntry 属性，并将 Context 原来的 curEntry 属性设置为该新 Entry 对象的父节点，如下所示：
 
-<img src="img/创建 Entry.png" style="zoom: 33%;" />
+<img src="img/创建 Entry.png" style="zoom: 25%;" />
 
 ###### 退出 Entry
 
@@ -1020,7 +1058,7 @@ public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, 
 
 多次创建不同的 Entry，并且执行 NodeSelectorSlot#entry() 方法后，就会编程这样一颗调用链树：
 
-<img src="img/设置多个 curNode.png" style="zoom: 33%;" />
+<img src="img/设置多个 curNode.png" style="zoom: 25%;" />
 
 > 上图中的 node0、node1、node2 可能都是相同的 node，因为在同一个 Context 中，从 map 中获取的 node 是同一个，这里只是为了表述的更清楚，所以用来不同的节点名。
 
@@ -1057,7 +1095,7 @@ public Node getLastNode() {
 
 <img src="img/再次调用 getLastNode 方法.png" style="zoom: 33%;" />
 
-此时再次调用 context 的 getLastNode 方法，因为此时 curEntry 的 parent 不再是 null 了，所以获取到的 lastNode 是 curEntry.parent.curNode，在上图中可以很方便的看出，这个节点就是 **node0**。那么把当前节点 node1 添加到 lastNode 的子节点中去，上面的图形就变成下图这样：
+此时再次调用 context 的 getLastNode() 方法，因为此时 curEntry 的 parent 不再是 null 了，所以获取到的 lastNode 是 curEntry.parent.curNode，在上图中可以很方便的看出，这个节点就是 **node0**。那么把当前节点 node1 添加到 lastNode 的子节点中去，上面的图形就变成下图这样：
 
 <img src="img/node1 添加到 lastNode.png" style="zoom: 33%;" />
 
@@ -1199,7 +1237,7 @@ NodeSelectorSlot 的职责比较简单，主要做了两件事：
 
 监控统计
 
-StatisticSlot 是 Sentinel 最为重要的类之一，用于记录、统计不同维度的 runtime 指标监控信息，用于根据规则判断结果进行相应的统计操作。
+StatisticSlot 是 Sentinel 最为重要的类之一，用于记录、统计不同维度的运行指标监控信息，用于根据规则判断结果进行相应的统计操作。
 
 ```java
 /**
@@ -1321,7 +1359,7 @@ public void exit(Context context, ResourceWrapper resourceWrapper, int count, Ob
 }
 ```
 
-执行 entry() 方法的时候：该方法首先会触发后续 slot 的 entry 方法，例如 SystemSlot、FlowSlot、DegradeSlot 等的规则，即依次执行后面的判断 slot。每个 slot 触发流控的话会抛出异常（`BlockException` 的子类）。若有 `BlockException` 抛出，则记录 block 数据；若无异常抛出则算作可通过（pass），记录 pass 数据。即如果规则不通过，就会抛出 BlockException，则会在 node 中统计被 block 的数量。反之会在 node 中统计通过的请求数和线程数等信息，
+执行 entry() 方法的时候：该方法首先会触发后续 slot 的 entry 方法，例如 SystemSlot、FlowSlot、DegradeSlot 等的规则，即依次执行后面的判断 slot。每个 slot 如果触发流控的话会抛出异常（`BlockException` 的子类）。若有 `BlockException` 抛出，则记录 block 数据；若无异常抛出则算作可通过（pass），记录 pass 数据。即如果规则不通过，就会抛出 BlockException，则会在 node 中统计被 block 的数量。反之会在 node 中统计通过的请求数和线程数等信息，
 
 执行 exit() 方法的时候：若无 error（无论是业务异常还是流控异常），记录 complete（success）以及 RT，线程数-1。
 
@@ -1407,7 +1445,7 @@ Sentinel 底层采用高性能的滑动窗口数据结构 `LeapArray` 来统计�
 - 白名单：来源（origin）在白名单内的调用者允许访问
 - 黑名单：俩与（origin）在黑名单内的调用者不允许访问
 
-<img src="img/授权规则.jpg" style="zoom:20%;" />
+<img src="img/授权规则.jpg" style="zoom: 25%;" />
 
 
 
@@ -1447,7 +1485,7 @@ Sentinel 底层采用高性能的滑动窗口数据结构 `LeapArray` 来统计�
 
 注意系统规则只对入口流量起作用（调用类型为 `EntryType.IN`），对出口流量无效。可通过 `SphU.entry(res, entryType)` 指定调用类型，如果不指定，默认是 `EntryType.OUT`。
 
-<img src="img/系统保护规则.jpg" style="zoom:20%;"/>
+<img src="img/系统保护规则.jpg" style="zoom: 33%;"/>
 
 
 
@@ -1489,11 +1527,11 @@ DefaultProcessorSlotChain 中有两个 AbstractLinkedProcessorSlot 类型的变�
 
 将第一个节点添加到链表中后，整个链表的结构变成了如下图这样：
 
-<img src="img/链表添加第一个节点.jpg" style="zoom:20%;"/>
+<img src="img/链表添加第一个节点.jpg" style="zoom: 25%;"/>
 
 将所有的节点都加入到链表中后，整个链表的结构变成了如下图所示：
 
-<img src="img/所有节点添加到链表.jpg" style="zoom:20%;"/>
+<img src="img/所有节点添加到链表.jpg" style="zoom: 25%;"/>
 
 这样就将所有的 Slot 对象添加到了链表中去了，每一个 Slot 都是继承自 AbstractLinkedProcessorSlot。而 AbstractLinkedProcessorSlot 是一种责任链的设计，每个对象中都有一个 next 属性，指向的是另一个AbstractLinkedProcessorSlot 对象。
 
@@ -1517,7 +1555,7 @@ Sentinel 的限流降级等功能，主要是通过一个 SlotChain 实现的。
 
 ## Sentinel 核心源码解析
 
-<img src="img/Sentinel核心源码解析流程图.png" style="zoom:;" />
+<img src="img/Sentinel核心源码解析流程图.png" style="zoom: 33%;" />
 
 
 
@@ -1748,13 +1786,13 @@ public abstract class LeapArray<T> {
 
 ### 数据统计源码解析
 
-<img src="img/Sentinel滑动时间窗算法源码解析—数据统计.png"/>
+<img src="img/Sentinel滑动时间窗算法源码解析—数据统计.png" style="zoom:33%;" />
 
 
 
 ### 使用统计数据
 
-<img src="img/Sentinel滑动时间窗算法源码解析—使用统计数据.png" />
+<img src="img/Sentinel滑动时间窗算法源码解析—使用统计数据.png" style="zoom:33%;" />
 
 ---
 

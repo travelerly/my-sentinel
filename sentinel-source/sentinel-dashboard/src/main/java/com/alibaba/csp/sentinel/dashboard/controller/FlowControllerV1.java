@@ -63,10 +63,16 @@ public class FlowControllerV1 {
     @Autowired
     private SentinelApiClient sentinelApiClient;
 
+    /**
+     * ⽤于从数据中⼼拉取数据
+     */
     @Autowired
     @Qualifier("flowRuleNacosProvider")
     private DynamicRuleProvider ruleProvider;
 
+    /**
+     * ⽤于向配置中⼼推送数据
+     */
     @Autowired
     @Qualifier("flowRuleNacosPublisher")
     private DynamicRulePublisher rulePublisher;

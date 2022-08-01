@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
+ * ⽤于向配置中⼼推送数据
  * @author colin
  * @create 2022-07-05 11:40
  */

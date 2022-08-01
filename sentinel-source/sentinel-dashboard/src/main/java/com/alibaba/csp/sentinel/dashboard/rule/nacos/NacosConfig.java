@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 控制台配置 nacos 配置中⼼地址
  * @author colin
  * @create 2022-07-05 11:44
  */

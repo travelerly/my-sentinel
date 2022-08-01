@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * ⽤于从数据中⼼拉取数据
  * @author colin
  * @create 2022-07-05 11:39
  */

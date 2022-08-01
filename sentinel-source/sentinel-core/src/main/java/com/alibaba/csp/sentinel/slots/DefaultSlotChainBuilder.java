@@ -42,7 +42,15 @@ public class DefaultSlotChainBuilder implements SlotChainBuilder {
 
         /**
          * 使用 SPI 机制构建 Slot，会加载 ProcessorSlot 文件中配置的所有 Slot，并且是按照顺序加载：
-         * List<ProcessorSlot> sortedSlotList = {NodeSelectorSlot,ClusterBuilderSlot,LogSlot,StatisticSlot,AuthoritySlot,SystemSlot,ParamFlowSlot,FlowSlot,DegradeSlot}
+         * List<ProcessorSlot> sortedSlotList = {
+         * NodeSelectorSlot,
+         * ClusterBuilderSlot,
+         * LogSlot,
+         * StatisticSlot,
+         * AuthoritySlot,
+         * SystemSlot,
+         * ParamFlowSlot,
+         * FlowSlot,DegradeSlot}
          */
         List<ProcessorSlot> sortedSlotList = SpiLoader.loadPrototypeInstanceListSorted(ProcessorSlot.class);
 

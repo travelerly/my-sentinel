@@ -121,6 +121,7 @@
         <module>sentinel-source</module>
         <module>colin-consumer</module>
         <module>colin-provider</module>
+        <module>colin-rate-limiter</module>
     </modules>
 
     <dependencyManagement>

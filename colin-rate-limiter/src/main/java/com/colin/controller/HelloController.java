@@ -5,11 +5,10 @@ import com.alibaba.csp.sentinel.SphU;
 import com.colin.annotation.ColinLeakyBucket;
 import com.colin.annotation.ColinRateLimiter;
 import com.colin.own.ColinOwnRateLimiter;
+import com.colin.own.ColinOwnSemaphore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.concurrent.Semaphore;
 
 /**
  * @author colin
@@ -28,7 +27,7 @@ public class HelloController {
     /**
      * 信号量实现线程数限流器
      */
-    public Semaphore semaphore = new Semaphore(2);
+    public ColinOwnSemaphore semaphore = new ColinOwnSemaphore(2);
 
     /**
      * 使用 goole guava 提供的限流器实现限流功能

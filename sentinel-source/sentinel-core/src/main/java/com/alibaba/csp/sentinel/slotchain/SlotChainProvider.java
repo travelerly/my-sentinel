@@ -41,8 +41,10 @@ public final class SlotChainProvider {
             return slotChainBuilder.build();
         }
 
-        // Resolve the slot chain builder SPI.
-        // 使用 SPI 机制来创建 builder。SlotChainBuilder 为 SPI 接口
+        /**
+         * 使用 SPI 机制加载 META-INFO 下的 service 目录中所有的 SlotChainBuilder 的实现类
+         * 使用 SPI 机制来创建 builder。SlotChainBuilder 为 SPI 接口
+         */
         slotChainBuilder = SpiLoader.loadFirstInstanceOrDefault(SlotChainBuilder.class, DefaultSlotChainBuilder.class);
 
         // 若使用 SPI 机制未能成功创建 builder，则 new 一个 DefaultSlotChainBuilder

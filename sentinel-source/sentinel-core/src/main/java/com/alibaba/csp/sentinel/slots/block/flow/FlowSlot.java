@@ -195,8 +195,7 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
-    void checkFlow(ResourceWrapper resource, Context context, DefaultNode node, int count, boolean prioritized)
-        throws BlockException {
+    void checkFlow(ResourceWrapper resource, Context context, DefaultNode node, int count, boolean prioritized) throws BlockException {
         // checker 是 FlowRuleChecker 类的一个对象
         checker.checkFlow(ruleProvider, resource, context, node, count, prioritized);
     }

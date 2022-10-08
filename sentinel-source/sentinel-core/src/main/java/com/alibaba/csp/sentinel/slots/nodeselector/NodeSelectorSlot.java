@@ -182,7 +182,6 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
             synchronized (this) {
                 node = map.get(context.getName());
                 if (node == null) {
-
                     // 如果为空，即，当前 Context 中没有该节点，则为当前资源创建一个新的 DefaultNode，并放入到缓存 map 中
                     node = new DefaultNode(resourceWrapper, null);
                     HashMap<String, DefaultNode> cacheMap = new HashMap<String, DefaultNode>(map.size());
@@ -190,7 +189,6 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                     // 放入缓存 map 中，key 是 contextName，这样不同链路进入相同资源，就会创建多个 DefaultNode
                     cacheMap.put(context.getName(), node);
                     map = cacheMap;
-
                     /**
                      * 将当前节点加入上一节点的 child 中，这样就构成了调用链路树，EntranceNode → DefaultNode
                      * 将当前 node 作为 Context 的最后一个节点的子节点添加进去

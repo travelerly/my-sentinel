@@ -73,7 +73,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
 
         /**
          * 熔断器状态为打开状态，此时再查看：
-         * retryTimeoutArrived()：计算当前时间 是否超过了上次熔断时间 + 熔断窗口时间，
+         * retryTimeoutArrived()：计算当前时间是否超过了上次熔断时间 + 熔断窗口时间，
          * fromOpenToHalfOpen(context)：采用 CAS 的方式将断路器由 OPEN 状态改为 HALF_OPEN状态，即表示可以尝试性发送请求
          * 若当前时间已经超过了上次熔断的窗口时间，则表示熔断结束，则尝试将断路器由 OPEN 状态改为 HALF_OPEN 状态
          * 修改成功返回 true，否则返回 false

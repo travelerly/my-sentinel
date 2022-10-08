@@ -141,8 +141,10 @@ public class CtSph implements Sph {
         }
 
         if (context == null) {
-            // Using default context.
-            // 若当前线程中没有绑定 context，则创建一个 context 并将其放入到 ThreadLocal 中，默认的 name 为 sentinel_default_context。
+            /**
+             * 若当前线程中没有绑定 context，则创建一个 context 并将其放入到 ThreadLocal 中，
+             * 默认的 name 为 sentinel_default_context。
+             */
             context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
         }
 

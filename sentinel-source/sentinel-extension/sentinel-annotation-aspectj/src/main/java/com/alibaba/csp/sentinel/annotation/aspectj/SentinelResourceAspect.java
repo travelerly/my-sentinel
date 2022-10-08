@@ -70,6 +70,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
 
         try {
             /**
+             * 执行流控组成的责任链
              * 创建资源 Entry，即获取资源的操作对象，在目标方法执行之前进行功能增强，即应用流控规则
              * 要织入的、增强的功能
              * resourceName：资源名称，即注解 @SentinelResource 的 value 属性的值
@@ -84,9 +85,13 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             // 返回结果
             return result;
         } catch (BlockException ex) {
-            // 处理 Sentinel 发出的异常，回调 blockHandler 方法
+            /**
+             * 处理 Sentinel 发出的异常，即处理流控异常，回调 blockHandler 方法
+             * BlockException：流控异常
+             */
             return handleBlockException(pjp, annotation, ex);
         } catch (Throwable ex) {
+            // 处理业务异常
             Class<? extends Throwable>[] exceptionsToIgnore = annotation.exceptionsToIgnore();
             // The ignore list will be checked first.
             if (exceptionsToIgnore.length > 0 && exceptionBelongsTo(ex, exceptionsToIgnore)) {
@@ -102,7 +107,10 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             throw ex;
         } finally {
             if (entry != null) {
-                // 目标方法执行完毕之后，或应用流控规则时未通过后执行
+                /**
+                 * 所有流控的收尾逻辑，例如断路器半开状态重试
+                 * 目标方法执行完毕之后，或应用流控规则时未通过后执行
+                 */
                 entry.exit(1, pjp.getArgs());
             }
         }

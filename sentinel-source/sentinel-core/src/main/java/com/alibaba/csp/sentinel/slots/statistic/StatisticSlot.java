@@ -76,8 +76,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
              */
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
 
-            // Request passed, add thread count and pass count.
-            // 运行至此，说明前面所有规则检测全部通过，此时就可以将该请求统计到相应数据中了
+            /**
+             * 运行至此，说明前面所有规则检测全部通过，此时就可以将该请求统计到相应数据中了
+             */
 
             // 请求通过了，线程计数器+1，用作线程隔离
             node.increaseThreadNum();
@@ -116,7 +117,12 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }
         } catch (BlockException e) {
-            // Blocked, set block exception to current entry.
+            /**
+             * 捕获流控异常
+             * FlowException、DegradeException 等都是流控异常 BlockException
+             */
+
+            // 捕获流控异常。Blocked, set block exception to current entry.
             context.getCurEntry().setBlockError(e);
 
             // 捕获异常，限流计数器+1。Add block count.
@@ -142,9 +148,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
              */
             throw e;
         } catch (Throwable e) {
-            // Unexpected internal error, set error to current entry.
+            // 捕获业务异常。Unexpected internal error, set error to current entry.
             context.getCurEntry().setError(e);
-
+            // 继续抛给 AOP 拦截器捕获
             throw e;
         }
     }

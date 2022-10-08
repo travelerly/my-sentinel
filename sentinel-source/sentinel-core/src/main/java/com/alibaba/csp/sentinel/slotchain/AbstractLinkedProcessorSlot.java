@@ -27,8 +27,7 @@ public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T>
     private AbstractLinkedProcessorSlot<?> next = null;
 
     @Override
-    public void fireEntry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
-        throws Throwable {
+    public void fireEntry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args) throws Throwable {
         if (next != null) {
             // 切换到下一个节点
             next.transformEntry(context, resourceWrapper, obj, count, prioritized, args);

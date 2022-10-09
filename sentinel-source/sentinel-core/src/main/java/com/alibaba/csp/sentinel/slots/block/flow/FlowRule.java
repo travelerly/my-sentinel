@@ -54,7 +54,7 @@ public class FlowRule extends AbstractRule {
     private int grade = RuleConstant.FLOW_GRADE_QPS;
 
     /**
-     * 阈值
+     * 限流阈值
      * Flow control threshold count.
      */
     private double count;
@@ -76,9 +76,9 @@ public class FlowRule extends AbstractRule {
 
     /**
      * 三种流控效果：
-     * 0：快速失败；
+     * 0：快速失败（采用滑动时间窗算法）；
      * 1：预热 warm up（采用令牌桶算法）；
-     * 2：排队等待（漏斗算法）；
+     * 2：排队等待（采用漏桶算法）；
      * 3：warm up + 排队等待
      *
      * Rate limiter control behavior.

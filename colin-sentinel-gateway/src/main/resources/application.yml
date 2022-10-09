@@ -1,0 +1,42 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: colin-sentinel-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          # 开启以服务 id 去注册中心上获取转发地址
+          enabled: true
+      # 路由策略127.0.0.1:8083/colin-consumer
+      routes:
+        - id: colin-consumer
+          # 基于 lb 负载均衡形式转发
+          uri: lb://colin-consumer
+          filters:
+            - StripPrefix=1
+          # 匹配规则
+          predicates:
+            - Path=/colin-consumer/**
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    sentinel:
+      # 将数据上报 sentinel transport 仪表盘
+      transport:
+        port: 8719
+        dashboard: localhost:8888
+      # 该配置能够使 dashboard 主动发现该应用
+      eager: true
+      # 配置限流之后，响应内容
+      scg:
+        fallback:
+          # 两种模式，一种是 response 返回文字提示信息，
+          # 另一种是 redirect，重定向跳转，需要同时配置 redirect(跳转的 uri)
+          mode: response
+          # 响应的状态
+          response-status: 200
+          # 响应体
+          response-body: '{"code": 200,"message": "请求失败，稍后重试！"}'

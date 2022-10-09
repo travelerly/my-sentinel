@@ -122,6 +122,7 @@
         <module>colin-consumer</module>
         <module>colin-provider</module>
         <module>colin-rate-limiter</module>
+        <module>colin-sentinel-gateway</module>
     </modules>
 
     <dependencyManagement>

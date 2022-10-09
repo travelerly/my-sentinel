@@ -7,7 +7,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8488
+        server-addr: localhost:8848
     sentinel:
       transport:
         # sentinel 的控制台地址
